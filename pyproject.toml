@@ -5,8 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "DataBUS"
 version = "0.1.0"
-description = "Upload site information to the neotoma Database"
-authors = [{name = "Socorro E Dominguez Vidana", email = "s.dominguez@ht-data.com"}]
+description = "Upload dataset records to the Neotoma Database"
+authors = [{name = "Socorro E Dominguez Vidana", email = "dominguezvid@uwisc.edu"}]
 
 dependencies = [
     "numpy==1.25.0",
@@ -18,8 +18,9 @@ dependencies = [
     "PyYAML==6.0",
     "six==1.16.0",
     "tzdata==2023.3",
-    "openpyxl"
-]
+    "openpyxl",
+    "requests"
+    ]
 
 requires-python = ">=3.7"
 
