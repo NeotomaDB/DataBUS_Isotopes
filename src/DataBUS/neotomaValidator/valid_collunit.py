@@ -70,12 +70,34 @@ def valid_collunit(cur, yml_dict, csv_file):
     for key, value in inputs.items():
         if isinstance(value, list) and len(value) == 1:
             inputs[key] = value[0]
-    
+
     if inputs["depenvtid"]:
         query = """SELECT depenvtid FROM ndb.depenvttypes
                     WHERE LOWER(depenvt) = %(depenvt)s"""
         cur.execute(query, {"depenvt": inputs["depenvtid"].lower()})
-        inputs["depenvtid"] = cur.fetchone()[0]
+        depenv = cur.fetchone()
+        if depenv:
+            inputs["depenvtid"] = depenv[0]
+        else:
+            response.message.append(f"Depositional environment {inputs['depenvtid'].lower()} "
+                                    f"not found in Neotoma.")
+            sim_query = """SELECT depenvt, depenvtid
+                        FROM ndb.depenvttypes
+                        WHERE depenvt %% %(depenvt)s
+                        ORDER BY similarity(LOWER(depenvt), %(depenvt)s) DESC
+                        LIMIT 8;"""
+            cur.execute(sim_query,{'depenvt': inputs["depenvtid"].lower()})
+            possibilities = cur.fetchall()
+            cleaned_results = [row[0] for row in possibilities]
+            formatted_result = ", ".join(cleaned_results)
+            if formatted_result:
+                inputs["depenvtid"] = possibilities[0][1]
+                response.message.append(f"Did you mean any of these: {formatted_result}? "
+                                        f"Please modify CSV file to match available environments")
+            else:
+                inputs["depenvtid"] = None
+                response.message.append(f"Please add the new depositional environment.")
+            response.valid.append(False)
     
     if inputs['geog']:
         try:
@@ -155,7 +177,7 @@ def valid_collunit(cur, yml_dict, csv_file):
                     notes=str(coll_info[17]),
                 )
                 depenv_q = """SELECT depenvt from ndb.depenvttypes
-                            WHERE depenvtid = %(depenvtid)s"""
+                            WHERE LOWER(depenvtid) = %(depenvtid)s"""
                 cur.execute(depenv_q, {'depenvtid': found_cu.depenvtid})
                 depenv_name = cur.fetchone()[0]
                 msg = cu.compare_cu(found_cu)

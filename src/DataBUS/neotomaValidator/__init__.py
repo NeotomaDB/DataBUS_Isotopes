@@ -28,3 +28,4 @@ from .valid_data_long import valid_data_long
 from .valid_sample_age import valid_sample_age
 from .valid_pbmodel import valid_pbmodel
 from .valid_datauncertainty import valid_datauncertainty
+from .valid_publication import valid_publication

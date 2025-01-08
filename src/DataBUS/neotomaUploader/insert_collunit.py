@@ -21,6 +21,7 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
         _int_: _The integer value of the newly created siteid from the Neotoma Database._
     """
     response = CUResponse()
+    notes = ""
     params = [
         "collectionunitid",
         "handle",
@@ -56,16 +57,20 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
                     if len(new_date) == 7 and new_date[4] == '-' and new_date[5:7].isdigit():
                         new_date = f"{new_date}-01"
                         datetime.strptime(date_string, "%Y-%m-%d")
-                    elif new_date.endswith("--"):
+                        notes = notes + f""
+                    elif new_date.endswith("--") or new_date.endswith("//"):
                         notes = f"Collection Date seems to be: {new_date}"
                         new_date = None
+                    else:
+                        notes = notes + f""
             params.remove("colldate")
             inputs = nh.clean_inputs(
             nh.pull_params(params, yml_dict, csv_file, "ndb.collectionunits") ) 
             inputs["colldate"] = new_date
             if not inputs["notes"]:
-                inputs["notes"] = []
-                inputs["notes"].append(notes)
+                inputs["notes"] = notes
+            else:
+                inputs["notes"] = inputs["notes"] + notes
             response.valid.append(True)
         except Exception as inner_e:
             response.validAll = False
@@ -75,7 +80,7 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
     if not inputs["collunitname"]:
         inputs["database"] = nh.retrieve_dict(yml_dict, "ndb.datasetdatabases.databasename")
         if inputs["database"][0]['value'].lower() == "East Asian Nonmarine Ostracod Database".lower():
-            inputs["collunitname"] = f"EANOD/{inputs['handle']}/OST"
+            inputs["collunitname"] = f"EANOD/{inputs['handle'][0]}/OST"
 
 
     if inputs['geog']:
@@ -97,8 +102,13 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
         query = """SELECT depenvtid FROM ndb.depenvttypes
                    WHERE LOWER(depenvt) = %(depenvt)s"""
         cur.execute(query, {"depenvt": inputs["depenvtid"][0].lower()})
-        inputs["depenvtid"] = cur.fetchone()[0]
- 
+        depenv = cur.fetchone()
+        if depenv:
+            inputs["depenvtid"] = depenv[0]
+        else:
+            inputs["notes"] = inputs["notes"] + f"Dep. Env.{inputs['depenvtid'][0]}"
+            inputs["depenvtid"] = None
+
     if isinstance(inputs["handle"], list):
         response.handle = inputs["handle"][0]
     else:

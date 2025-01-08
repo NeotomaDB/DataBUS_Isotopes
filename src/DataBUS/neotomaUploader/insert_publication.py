@@ -12,16 +12,17 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
     response = Response()
 
     params = [
-        "doi", "publicationid"
+        "doi", "publicationid", "citation"
     ]
     inputs = nh.clean_inputs(
         nh.pull_params(params, yml_dict, csv_file, "ndb.publications")
     )
 
-    inputs["publicationid"] = [
-        value if value != "NA" else None for value in inputs["publicationid"]
-    ]
-    inputs["publicationid"] = inputs["publicationid"][0]
+    if inputs["publicationid"]:
+        inputs["publicationid"] = [
+            value if value != "NA" else None for value in inputs["publicationid"]
+        ]
+        inputs["publicationid"] = inputs["publicationid"][0]
     doi_pattern = r"^10\.\d{4,9}/[-._;()/:A-Z0-9]+$"
 
     dataset_pub_q = """SELECT ts.insertdatasetpublication(%(datasetid)s, 
@@ -32,6 +33,32 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
     if inputs['publicationid'] is None:
         response.message.append(f"? No DOI present")
         response.valid.append(True)
+        if inputs['citation']:
+            for cit in inputs['citation']:
+                cit_q = """
+                        SELECT *
+                        FROM ndb.publications
+                        WHERE citation IS NOT NULL
+                        ORDER BY similarity(LOWER(citation), %(cit)s) DESC
+                        LIMIT 1; """
+                cur.execute(cit_q, {'cit': cit.lower()})
+                obs = cur.fetchall()
+                if obs:
+                    pub_id = obs[0]
+                    response.message.append(f"✔  Found Publication: "
+                                            f"{pub_id[3]} in Neotoma")
+                    response.valid.append(True)
+                    try: 
+                        cur.execute(dataset_pub_q, {'datasetid': uploader["datasetid"].datasetid,
+                                                    'publicationid': pub_id[0],
+                                                    'primarypub': True})
+                        response.valid.append(True)
+                    except Exception as e:
+                        response.message.append("Could not associate dataset ID to publication ID")
+                        response.valid.append(False)
+                else:
+                    response.message.append("✗  The publication does not exist in Neotoma.")
+                    response.valid.append(False)
     else:
         try:
             inputs['publicationid'] = int(inputs['publicationid'])

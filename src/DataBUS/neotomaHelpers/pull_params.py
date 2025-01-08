@@ -34,7 +34,7 @@ def pull_params(params, yml_dict, csv_template, table=None):
             valor = retrieve_dict(yml_dict, table + i)
             if len(valor) > 0:
                 notes_list = []
-                for count, val in enumerate(valor):
+                for count, val in enumerate(valor):        
                     new_dict = {}
                     clean_valor = clean_column(
                         val.get("column"), csv_template, clean=not val.get("rowwise")
@@ -50,14 +50,6 @@ def pull_params(params, yml_dict, csv_template, table=None):
                                         #clean_valor = f" {val['column']}: {', '.join(clean_valor)}"
                                         clean_valor = [f" {val['column']}: {num}" for num in clean_valor]
                                         notes_list.append(clean_valor)
-                                if "notes" in add_unit_inputs:
-                                    for entry in zip(*notes_list):
-                                        formatted_entry = " ".join(part.strip() for part in entry)
-                                        clean_valor = f'{add_unit_inputs["notes"]}' + f'{formatted_entry}'
-                                else:
-                                    for entry in zip(*notes_list):
-                                        clean_valor = " ".join(part.strip() for part in entry)
-
                             case "date":
                                 # clean_valor = list(map(lambda x: datetime.datetime.strptime(x, '%Y-%m-%d').date(), chain(*clean_valor)))
                                 clean_valor = list(
@@ -75,12 +67,19 @@ def pull_params(params, yml_dict, csv_template, table=None):
                                     float(value) if value not in ["NA", ""] else None
                                     for value in clean_valor
                                 ]
-                                # clean_valor = list(map(float, clean_valor))
                             case "coordinates (lat,long)":
                                 clean_valor = [
                                     float(num) for num in clean_valor[0].split(",")
                                 ]
-                    add_unit_inputs[i] = clean_valor
+                    if i == "notes":
+                        transposed_data = list(zip(*notes_list))
+                        # Convert tuples back to lists if needed
+                        result = [list(item) for item in transposed_data]
+                        result = "\n".join([" ".join(item.strip() for item in row) + " |" for row in result])
+                        add_unit_inputs[i] = result
+                    else:
+                        add_unit_inputs[i] = clean_valor
+
                     if "unitcolumn" in val:
                         clean_valor2 = clean_column(
                             val.get("unitcolumn"),

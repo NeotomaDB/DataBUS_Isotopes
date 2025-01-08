@@ -2,8 +2,8 @@ import DataBUS.neotomaHelpers as nh
 from DataBUS import Publication, Response
 import requests
 import re
-
-def insert_publication(cur, yml_dict, csv_file, uploader):
+ 
+def valid_publication(cur, yml_dict, csv_file, validator):
     """
     Validates publication data into Neotoma.
 
@@ -12,25 +12,38 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
     response = Response()
 
     params = [
-        "doi", "publicationid"
+        "doi", "publicationid", "citation"
     ]
     inputs = nh.clean_inputs(
         nh.pull_params(params, yml_dict, csv_file, "ndb.publications")
     )
+    if inputs["publicationid"]:
+        inputs["publicationid"] = [
+            value if value != "NA" else None for value in inputs["publicationid"]
+        ]
+        inputs["publicationid"] = inputs["publicationid"][0]
 
-    inputs["publicationid"] = [
-        value if value != "NA" else None for value in inputs["publicationid"]
-    ]
-    inputs["publicationid"] = inputs["publicationid"][0]
+    
     doi_pattern = r"^10\.\d{4,9}/[-._;()/:A-Z0-9]+$"
 
-    dataset_pub_q = """SELECT ts.insertdatasetpublication(%(datasetid)s, 
-                                                          %(publicationid)s, 
-                                                          %(primarypub)s)
-                                                          """
     if inputs['publicationid'] is None:
         response.message.append(f"? No DOI present")
         response.valid.append(True)
+        if inputs['citation']:
+            for cit in inputs['citation']:
+                cit_q = """
+                        SELECT *
+                        FROM ndb.publications
+                        WHERE citation IS NOT NULL
+                        ORDER BY similarity(LOWER(citation), %(cit)s) DESC
+                        LIMIT 1; """
+                cur.execute(cit_q, {'cit': cit.lower()})
+                obs = cur.fetchall()
+                if obs:
+                    pub_id = obs[0]
+                    response.message.append(f"✔  Found Publication: "
+                                            f"{pub_id[3]} in Neotoma")
+                    response.valid.append(True)
     else:
         try:
             inputs['publicationid'] = int(inputs['publicationid'])
@@ -47,9 +60,6 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
                 response.message.append(f"✔  Found Publication: "
                                         f"{pub[3]} in Neotoma")
                 response.valid.append(True)
-                cur.execute(dataset_pub_q, {'datasetid': uploader["datasetid"].datasetid,
-                                            'publicationid': inputs['publicationid'],
-                                            'primarypub': True})
             else:
                 response.message.append("✗  The publication does not exist in Neotoma.")
                 response.valid.append(False)
@@ -105,22 +115,10 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
                     response.valid.append(False)
                     response.message.append("✗  Publication cannot be created {e}")
                     #pub = Publication()
-                try:
-                    pubid = pub.insert_to_db(cur)
-                    response.pub = pubid
-                    response.valid.append(True)
-                    response.message.append(f"✔ Added Publication {pubid}.")
-
-                except Exception as e:
-                    response.message.append(
-                        f"✗  Publication Data is not correct. Error message: {e}"
-                    )
-                    pub = Publication()
-                    pubid = pub.insert_to_db(cur)
-                    response.valid.append(False)
             else:
                 response.message.append("? Text found in reference column but "
-                                        f"it does not meet DOI standards."
+                                        f"it does not meet DOI standards"
+                                        f"of citation not given."
                                         f"Publication info will not be uploaded.")
     response.validAll = all(response.valid)
     return response

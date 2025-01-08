@@ -36,6 +36,7 @@ def valid_dataset(cur, yml_dict, csv_file):
     inputs["notes"] = nh.clean_inputs(
         nh.pull_params(["notes"], yml_dict, csv_file, "ndb.datasets")
     )["notes"]
+    
     query = "SELECT datasettypeid FROM ndb.datasettypes WHERE LOWER(datasettype) = %(ds_type)s"
     cur.execute(query, {"ds_type": f"{inputs['datasettypeid'].lower()}"})
     datasettypeid = cur.fetchone()

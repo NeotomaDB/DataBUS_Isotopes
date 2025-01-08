@@ -43,20 +43,6 @@ def insert_dataset(cur, yml_dict, csv_file, uploader):
         nh.pull_params(["notes"], yml_dict, csv_file, "ndb.datasets")
     )["notes"]
 
-    note_cols = [item['column'] for item in yml_dict['metadata'] if not item['neotoma'].startswith('ndb')]
-    if note_cols:
-        full_notes = []
-        unique_notes = set()
-        for d in csv_file:
-            small_dict = {key: d.get(key) for key in note_cols if d.get(key) not in {None, ''}}
-            unique_notes.update(small_dict.items()) 
-        full_notes = ", ".join(f"{key}: {value}" for key, value in unique_notes)
-    
-        if isinstance(inputs["notes"], str):
-            inputs["notes"] = inputs["notes"] + " " + " ".join(full_notes)
-        elif isinstance(inputs["notes"], list) or inputs["notes"] is None:
-            inputs["notes"] = " ".join(full_notes)
-
     query = "SELECT datasettypeid FROM ndb.datasettypes WHERE LOWER(datasettype) = %(ds_type)s"
     cur.execute(query, {"ds_type": f"{inputs['datasettypeid'].lower()}"})
     inputs["datasettypeid"] = cur.fetchone()
