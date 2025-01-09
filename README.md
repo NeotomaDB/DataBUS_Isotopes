@@ -10,7 +10,7 @@ This set of python scripts is intended to support the bulk upload of a set of re
 
 Once these three steps are completed the uploader will push the template files to the `neotomaholding` database. This is a temporary database that is intended to hold data within the Neotoma Paleoecology Database system for access by Tilia. Tilia is then used to provide a final data check and upload of data to Neotoma proper.
 
-![The process of uploading records using the bulk uploader. Individuals follow the steps outlined above and described further in this README file.](BulkUploaderSchema.svg)
+![The process of uploading records using the bulk uploader. Individuals follow the steps outlined above and described further in this README file.](img/BulkUploaderSchema.svg)
 
 ## Template Development
 
@@ -57,7 +57,7 @@ metadata:
 
 In this case we see that the team has chosen to create a column in their spreadsheet called `Coordinate.precision`, it is linked to the Neotoma table/column `ndb.collectionunits.location`. We state that it requires one term from a fixed vocabulary, the value repeats within the column, it is expected to be a `character` (as opposed to an `integer` or `numeric` value) and the order of the values does not matter.
 
-A complete list of Neotoma tables and columns is included in [`tablecolumns.csv`](tablecolumns.csv), and additional support for table concepts and content can be found either in the [Neotoma Paleoecology Database Manual](https://open.neotomadb.org/manual) or in the [online database schema](https://open.neotomadb.org/dbschema).
+A complete list of Neotoma tables and columns is included in [`tablecolumns.csv`](docs/tablecolumns.csv), and additional support for table concepts and content can be found either in the [Neotoma Paleoecology Database Manual](https://open.neotomadb.org/manual) or in the [online database schema](https://open.neotomadb.org/dbschema).
 
 Using the YAML template we can create complex relationships between existing data models for particular sets of records coming from individual researcher labs or data consortiums and the Neotoma database.
 
@@ -108,7 +108,7 @@ The validation step identifies each element of the template being validated, pro
 The upload process is initiated using the command:
 
 ```bash
-> python3 template_upload.py
+> python3 data_upload.py
 ```
 
 The upload process will return the distince siteids, and related data identifiers for the uploads.
