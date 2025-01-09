@@ -70,8 +70,12 @@ def valid_collunit(cur, yml_dict, csv_file):
     for key, value in inputs.items():
         if isinstance(value, list) and len(value) == 1:
             inputs[key] = value[0]
+    
+    substitutions = {'lake': 'lacustrine'}
 
     if inputs["depenvtid"]:
+        if inputs["depenvtid"].lower() in substitutions:
+            inputs["depenvtid"] = substitutions[inputs["depenvtid"].lower()]
         query = """SELECT depenvtid FROM ndb.depenvttypes
                     WHERE LOWER(depenvt) = %(depenvt)s"""
         cur.execute(query, {"depenvt": inputs["depenvtid"].lower()})
