@@ -13,7 +13,7 @@ def valid_contact(cur, csv_template, yml_dict):
     response = Response()
 
     params = ["contactid", "contactname"]
-    table = ["ndb.datasetpis", "ndb.sampleanalysts", "ndb.chronologies", "ndb.datasetprocessor"]
+    table = ["ndb.datasetpis", "ndb.sampleanalysts", "ndb.collectors", "ndb.chronologies", "ndb.datasetprocessor"]
     inputs = nh.pull_params(params, yml_dict, csv_template, table)
 
     for i, id in enumerate(inputs):
