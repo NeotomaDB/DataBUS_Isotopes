@@ -26,7 +26,6 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
         "collectionunitid",
         "handle",
         "core",
-        "colltypeid",
         "depenvtid",
         "collunitname",
         "colldate",
@@ -41,6 +40,8 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
         "notes",
         "geog",
     ]
+
+    substitutions = {'lake': 'lacustrine'}
     try:
         inputs = nh.clean_inputs(
             nh.pull_params(params, yml_dict, csv_file, "ndb.collectionunits")
@@ -77,11 +78,23 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
             response.message.append("CU parameters cannot be properly extracted. {e}\n")
             response.message.append(str(inner_e))
             return response
+        
+    inputs["colltypeid"] = nh.retrieve_dict(yml_dict, 
+                                            "ndb.collectionunits.colltypeid")[0]["value"].lower()
+
+    if inputs["colltypeid"]:
+        query1 = """SELECT colltypeid FROM ndb.collectiontypes 
+                    WHERE LOWER(colltype) = %(colltype)s"""
+        cur.execute(query1, {'colltype': inputs['colltypeid'].lower()})
+        inputs["colltypeid"] = cur.fetchone()
+
+    if inputs["colltypeid"]:
+        inputs["colltypeid"] = inputs["colltypeid"][0]
+
     if not inputs["collunitname"]:
         inputs["database"] = nh.retrieve_dict(yml_dict, "ndb.datasetdatabases.databasename")
         if inputs["database"][0]['value'].lower() == "East Asian Nonmarine Ostracod Database".lower():
             inputs["collunitname"] = f"EANOD/{inputs['handle'][0]}/OST"
-
 
     if inputs['geog']:
         try:
@@ -99,15 +112,22 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
     overwrite = nh.pull_overwrite(params, yml_dict, "ndb.collectionunits")
 
     if inputs["depenvtid"] and isinstance(inputs["depenvtid"], list):
+        inputs["depenvtid"] = inputs["depenvtid"][0]
+        if inputs["depenvtid"].lower() in substitutions:
+            inputs["depenvtid"] = substitutions[inputs["depenvtid"].lower()]
         query = """SELECT depenvtid FROM ndb.depenvttypes
                    WHERE LOWER(depenvt) = %(depenvt)s"""
-        cur.execute(query, {"depenvt": inputs["depenvtid"][0].lower()})
+        cur.execute(query, {"depenvt": inputs["depenvtid"].lower()})
         depenv = cur.fetchone()
         if depenv:
             inputs["depenvtid"] = depenv[0]
         else:
-            inputs["notes"] = inputs["notes"] + f"Dep. Env.{inputs['depenvtid'][0]}"
-            inputs["depenvtid"] = None
+            if inputs["notes"]:
+                inputs["notes"] = inputs["notes"] + f"Dep. Env.{inputs['depenvtid'][0]}"
+                inputs["depenvtid"] = None
+            else:
+                inputs["notes"] = f"Dep. Env.{inputs['depenvtid'][0]}"
+                inputs["depenvtid"] = None
 
     if isinstance(inputs["handle"], list):
         response.handle = inputs["handle"][0]
@@ -137,11 +157,12 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
         response.valid.append(True)
         response.message.append("✔  Added Collection Unit")
     except Exception as e:  #  be more informative
+        print(e)
         cu = CollectionUnit(
             siteid=uploader["sites"].siteid, handle="Pholder", geog=geog
         )
         response.valid.append(False)
-        response.message.append("✗ CU cannot be created")
+        response.message.append("✗ CU cannot be created {e}")
     if cu.handle:
         cur.execute(
             """SELECT * FROM ndb.collectionunits WHERE LOWER(handle) = %(handle)s""",

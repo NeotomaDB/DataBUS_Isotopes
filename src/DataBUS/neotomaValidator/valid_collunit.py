@@ -23,7 +23,6 @@ def valid_collunit(cur, yml_dict, csv_file):
     params = [
         "handle",
         "core",
-        "colltypeid",
         "depenvtid",
         "collunitname",
         "colldate",
@@ -73,6 +72,18 @@ def valid_collunit(cur, yml_dict, csv_file):
     
     substitutions = {'lake': 'lacustrine'}
 
+    inputs["colltypeid"] = nh.retrieve_dict(yml_dict, 
+                                            "ndb.collectionunits.colltypeid")[0]["value"].lower()
+
+    if inputs["colltypeid"]:
+        query1 = """SELECT colltypeid FROM ndb.collectiontypes 
+                    WHERE LOWER(colltype) = %(colltype)s"""
+        cur.execute(query1, {'colltype': inputs['colltypeid'].lower()})
+        inputs["colltypeid"] = cur.fetchone()
+
+    if inputs["colltypeid"]:
+        inputs["colltypeid"] = inputs["colltypeid"][0]
+
     if inputs["depenvtid"]:
         if inputs["depenvtid"].lower() in substitutions:
             inputs["depenvtid"] = substitutions[inputs["depenvtid"].lower()]
@@ -100,8 +111,7 @@ def valid_collunit(cur, yml_dict, csv_file):
                                         f"Please modify CSV file to match available environments")
             else:
                 inputs["depenvtid"] = None
-                response.message.append(f"Please add the new depositional environment.")
-            response.valid.append(False)
+                response.message.append(f"Depositional environment will be added to Notes.")
     
     if inputs['geog']:
         try:

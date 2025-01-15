@@ -24,7 +24,7 @@ def valid_contact(cur, csv_template, yml_dict):
         id["table"] = table[i]
     for element in inputs:
         response.message.append(
-            f"  === Checking Against Database - Table: {element['table']} ==="
+            f"  === Checking Against Database - Table: {element['table']}.contactid ==="
         )
         agentname = element["contactid"]
         if not agentname:
