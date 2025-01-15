@@ -47,7 +47,7 @@ class CollectionUnit:
             self.siteid = None
         else:
             self.siteid = int(siteid)
-        if depenvtid is None:
+        if depenvtid is None or depenvtid == '':
             self.depenvtid = None
         else:
             self.depenvtid = int(depenvtid)
@@ -85,10 +85,11 @@ class CollectionUnit:
         else:
             self.waterdepth = float(waterdepth)
 
-        if substrateid is None:
+        if substrateid is None or substrateid == '':
             self.substrateid = None
         else:
             self.substrateid = int(substrateid)
+            
 
         if slopeaspect is None:
             self.slopeaspect = None

@@ -84,6 +84,17 @@ def valid_collunit(cur, yml_dict, csv_file):
     if inputs["colltypeid"]:
         inputs["colltypeid"] = inputs["colltypeid"][0]
 
+    if inputs['substrateid'] and inputs['substrateid'] != ['']:
+        query = """SELECT rocktypeid FROM ndb.rocktypes
+                    WHERE LOWER(rocktype) = %(rocktype)s"""
+        cur.execute(query, {"rocktype": inputs["substrateid"][0].lower()})
+        substrate = cur.fetchone()
+        if substrate:
+            inputs["substrateid"] = substrate[0]
+        else:
+            response.message.append(f"No substrate {inputs['substrateid']} found")
+            inputs["substrateid"] = None
+            
     if inputs["depenvtid"]:
         if inputs["depenvtid"].lower() in substitutions:
             inputs["depenvtid"] = substitutions[inputs["depenvtid"].lower()]
@@ -190,8 +201,8 @@ def valid_collunit(cur, yml_dict, csv_file):
                     location=str(coll_info[16]),
                     notes=str(coll_info[17]),
                 )
-                depenv_q = """SELECT depenvt from ndb.depenvttypes
-                            WHERE LOWER(depenvtid) = %(depenvtid)s"""
+                depenv_q = """SELECT depenvtid from ndb.depenvttypes
+                            WHERE depenvtid = %(depenvtid)s"""
                 cur.execute(depenv_q, {'depenvtid': found_cu.depenvtid})
                 depenv_name = cur.fetchone()[0]
                 msg = cu.compare_cu(found_cu)
@@ -208,7 +219,8 @@ def valid_collunit(cur, yml_dict, csv_file):
                     csv_nonempty_fields = [key for key, value in inputs.items() if value not in (None, 'NA')]
                     found_keywords2 = [keyword for keyword in csv_nonempty_fields if any(re.search(rf'CSV\s+\b{re.escape(keyword)}\b', text) for text in msg)]
                     found_keywords = list(set(found_keywords+found_keywords2))
-                    found_keywords.remove('geog')
+                    if 'geog' in found_keywords:
+                        found_keywords.remove('geog')
                     
                     marker = bool(found_keywords)
                     if marker:

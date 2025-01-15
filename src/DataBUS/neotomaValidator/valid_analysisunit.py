@@ -1,7 +1,6 @@
 import DataBUS.neotomaHelpers as nh
 from DataBUS import AnalysisUnit, AUResponse
 
-
 def valid_analysisunit(yml_dict, csv_file):
     """_Inserting analysis units_"""
     params = [
@@ -25,7 +24,6 @@ def valid_analysisunit(yml_dict, csv_file):
         response.validAll = False
         response.message.append(f"AU Elements in the CSV file are not properly inserted. Please verify the CSV file")
 
-
     for k in inputs:
         if inputs[k] is None:
             response.message.append(f"? {k} has no values.")
@@ -33,7 +31,6 @@ def valid_analysisunit(yml_dict, csv_file):
         else:
             response.message.append(f"✔ {k} has values.")
             response.valid.append(True)
-
 
     if inputs["depth"] and len(inputs["depth"]) > 0:
         response.aucounter = 0
@@ -55,7 +52,8 @@ def valid_analysisunit(yml_dict, csv_file):
                 response.valid.append(True)
             except Exception as e:  # for now
                 response.valid.append(False)
-                response.message.append(f"✗ AnalysisUnit cannot be created: " f"{e}")
+                response.message.append(f"✗ AnalysisUnit cannot be created: " 
+                                        f"{e}")
             response.aucounter += 1
     else:
         AnalysisUnit(analysisunitid=None,

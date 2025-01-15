@@ -8,6 +8,8 @@ def valid_data_long(cur, yml_dict, csv_file, validator, filename):
     uncertainty_d = []
     response = Response()
     df = pd.read_csv(filename)
+    df = df.rename(columns={'NAME IN REFERENCE': 'scientificName',
+                       'NO SPEC': 'organismQuantity'})
     columns_to_check = ['scientificName', 'organismQuantity', 'variableelementid', 'variablecontextid']
     existing_columns = [col for col in columns_to_check if col in df.columns]
 
@@ -26,9 +28,7 @@ def valid_data_long(cur, yml_dict, csv_file, validator, filename):
     
     regex = r'^(\w+\s*\w+)'
 
-    for i, val_dict in enumerate(inputs):  # for sample
-        # data_counter = 0
-        #for i in range(validator["sample"].sa_counter):
+    for i, val_dict in enumerate(inputs):
         if val_dict['value']:
             if isinstance(val_dict['value'], (int, float)) and val_dict['value'] not in {0, 1}:
                 val_dict['unitcolumn'] = 'NISP'
