@@ -49,6 +49,23 @@ class Contact:
         }
         cur.execute(sa_query, inputs)
         return None
+    
+    def insert_collector(self, cur, collunitid):
+        if not isinstance(collunitid, int):
+            raise ValueError("CollectionUnitID must be an integer")
+
+        collector_query = """
+        SELECT ts.insertcollector(_collunitid := %(collunitid)s,
+                           _contactid := %(contactid)s,
+                           _collectororder := %(collectororder)s);
+                        """
+        inputs = {
+            "collunitid": collunitid,
+            "contactid": self.contactid,
+            "collectororder": self.order,
+        }
+        cur.execute(collector_query, inputs)
+        return
 
     def __str__(self):
         pass

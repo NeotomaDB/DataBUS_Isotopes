@@ -2,6 +2,8 @@ import datetime
 import re
 from .retrieve_dict import retrieve_dict
 from .clean_column import clean_column
+from collections import Counter
+import itertools
 
 def pull_params(params, yml_dict, csv_template, table=None):
     """_Pull parameters associated with an insert statement from the yml/csv tables._
@@ -34,7 +36,7 @@ def pull_params(params, yml_dict, csv_template, table=None):
             valor = retrieve_dict(yml_dict, table + i)
             if len(valor) > 0:
                 notes_list = []
-                for count, val in enumerate(valor):        
+                for count, val in enumerate(valor):     
                     new_dict = {}
                     clean_valor = clean_column(
                         val.get("column"), csv_template, clean=not val.get("rowwise")
@@ -47,11 +49,10 @@ def pull_params(params, yml_dict, csv_template, table=None):
                                     if all(j.strip() == "" for j in clean_valor):
                                         clean_valor = f""
                                     else:
-                                        #clean_valor = f" {val['column']}: {', '.join(clean_valor)}"
-                                        clean_valor = [f" {val['column']}: {num}" for num in clean_valor]
+                                        val['column'] = val['column'].replace("nameInPaper", "nameInPublication")
+                                        clean_valor = f"{val['column'].strip().replace('*', '')}: {', '.join(sorted(list(set(clean_valor)), key=str.casefold))}"
                                         notes_list.append(clean_valor)
                             case "date":
-                                # clean_valor = list(map(lambda x: datetime.datetime.strptime(x, '%Y-%m-%d').date(), chain(*clean_valor)))
                                 clean_valor = list(
                                     map(
                                         lambda x: datetime.datetime.strptime(
@@ -71,12 +72,9 @@ def pull_params(params, yml_dict, csv_template, table=None):
                                 clean_valor = [
                                     float(num) for num in clean_valor[0].split(",")
                                 ]
+
                     if i == "notes":
-                        transposed_data = list(zip(*notes_list))
-                        # Convert tuples back to lists if needed
-                        result = [list(item) for item in transposed_data]
-                        result = "\n".join([" ".join(item.strip() for item in row) + " |" for row in result])
-                        add_unit_inputs[i] = result
+                        add_unit_inputs[i] = " ".join(notes_list)
                     else:
                         add_unit_inputs[i] = clean_valor
 

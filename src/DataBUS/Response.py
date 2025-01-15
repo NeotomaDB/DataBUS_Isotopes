@@ -6,6 +6,7 @@ class Response:
         self.datasetid = None
         self.datasetpi = []
         self.processor = []
+        self.collector = []
         self.repoid = None
         self.databaseid = None
         self.sampleid = []

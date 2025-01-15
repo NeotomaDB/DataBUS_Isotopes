@@ -32,4 +32,5 @@ def check_file(filename, strict = False):
             response["message"].append("Errors found in the prior validation.")
     else:
         response["message"].append("No prior log file exists.")
+        response["pass"] = True
     return response
