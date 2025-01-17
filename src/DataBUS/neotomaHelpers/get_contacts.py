@@ -29,14 +29,18 @@ def get_contacts(cur, contacts_list):
     for i in contacts_list:
         cur.execute(get_contact, {"name": i})
         data = cur.fetchone()
-        d_name = data[1]
-        d_id = data[0]
-        result = d_name.startswith(i.rstrip("."))
-        result_2 = match_abbreviation_to_full(d_name, i)
-        if (result or result_2) == True:
-            contids.append({"name": d_name, "id": d_id, "order": baseid})
+        if data:
+            d_name = data[1]
+            d_id = data[0]
+            result = d_name.startswith(i.rstrip("."))
+            result_2 = match_abbreviation_to_full(d_name, i)
+            if (result or result_2) == True:
+                contids.append({"name": d_name, "id": d_id, "order": baseid})
+            else:
+                contids.append({"name": i, "id": None, "order": baseid})
+            baseid +=1
         else:
-            contids.append({"name": i, "id": None, "order": baseid})
-        baseid +=1
+            contids.append({"name": i, "id": None, "order": None})
+
     
     return contids 

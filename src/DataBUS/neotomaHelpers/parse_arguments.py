@@ -30,6 +30,14 @@ def parse_arguments():
         help="YAML/XLSX Template file to use for validation",
     )
     parser.add_argument(
+        "--validation_logs",
+        type=str,
+        nargs="?",
+        const="data/validation_logs/",
+        default="data/validation_logs/",
+        help="Folder where the validation templates are.",
+    )
+    parser.add_argument(
         "--overwrite",
         type=bool,
         nargs="?",

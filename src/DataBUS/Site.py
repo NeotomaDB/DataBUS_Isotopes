@@ -160,16 +160,20 @@ class Site:
             WHERE ST_SetSRID(st.geog::geometry, 4326)::geography <-> ST_SetSRID(ST_Point(%(long)s, %(lat)s), 4326)::geography < %(dist)s
             ORDER BY dist
             LIMIT %(lim)s;"""
-        cur.execute(
-            close_site,
-            {
-                "long": self.geog.longitude,
-                "lat": self.geog.latitude,
-                "dist": dist,
-                "lim": limit,
-            },
-        )
-        close_sites = cur.fetchall()
+        try:
+            cur.execute(
+                close_site,
+                {
+                    "long": self.geog.longitude,
+                    "lat": self.geog.latitude,
+                    "dist": dist,
+                    "lim": limit,
+                },
+            )
+            close_sites = cur.fetchall()
+        except Exception as e:
+            close_sites = None
+            print(f"Site is not formatted correctly. {e}")
         return close_sites
 
     def update_site(self, other, overwrite, siteresponse=None):
