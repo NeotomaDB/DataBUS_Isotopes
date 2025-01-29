@@ -1,19 +1,18 @@
 from .Geog import Geog, WrongCoordinates
 
-
 class Site:
     description = "Site object in Neotoma"
 
     def __init__(
         self,
         siteid=None,
-        sitename="None",
+        sitename=None,
         altitude=None,
         area=None,
         sitedescription=None,
         notes=None,
-        geog=None,
-    ):
+        geog=None):
+
         if not (isinstance(siteid, int) or siteid is None or siteid == "NA"):
             raise TypeError("✗ Site ID must be an integer or None.")
         if siteid == ["NA"] or siteid == "NA":
@@ -24,14 +23,16 @@ class Site:
             raise ValueError(f"✗ Sitename must be given.")
         if not isinstance(sitename, (list, str)):
             raise TypeError(f"✗ Sitename must be a string or list of strings.")
-        if isinstance(sitename, str):
-            sitename = [sitename]
-        if isinstance(sitename, list) and len(sitename) != 1:
-            raise ValueError("✗ There are multiple sitenames in your template.")
+        if isinstance(sitename, list):
+            sitenames = {s.lower() for s in sitename}
+            if len(sitenames) != 1:
+                raise ValueError("✗ There are multiple sitenames in your template.")
+            else:
+                sitename = sitename[0].title()
         self.sitename = sitename
 
         if not (isinstance(altitude, (int, float, list)) or altitude is None):
-            raise TypeError("Altitude must be a number or None.")
+            raise TypeError("Altitude must be a number, list of numbers, or None.")
         if isinstance(altitude, list):
             if len(altitude)>1:
                 raise TypeError("Only one altitude per unit")
@@ -53,7 +54,7 @@ class Site:
             raise TypeError("Site Description must be a str or None.")
         if isinstance(sitedescription, list):
             if len(sitedescription)>1:
-                raise TypeError("Only one site description per unit")
+                raise TypeError("Only one site description per site")
             self.sitedescription = sitedescription[0]
         else:
             self.sitedescription = sitedescription
@@ -70,8 +71,7 @@ class Site:
         if not (isinstance(geog, Geog) or geog is None):
             raise TypeError("geog must be Geog or None.")
         self.geog = geog
-
-        self.distance = None
+        self.distance = None # This is only updated when comparing to other sites.
 
     def __str__(self):
         statement = (
@@ -98,7 +98,6 @@ class Site:
         NS is latitude,
         EW is longitude
         """
-
         site_query = """SELECT ts.insertsite(_sitename := %(sitename)s, 
                         _altitude := %(altitude)s,
                         _area := %(area)s,
@@ -116,15 +115,14 @@ class Site:
             longitude = self.geog.longitude
 
         inputs = {
-            "sitename": self.sitename[0],
+            "sitename": self.sitename,
             "altitude": self.altitude,
             "area": self.area,
             "sitedescription": self.sitedescription,
             "notes": self.notes,
-            "ns": latitude,  # might be upside down
+            "ns": latitude,
             "ew": longitude,
         }
-
         cur.execute(site_query, inputs)
         self.siteid = cur.fetchone()[0]
         return self.siteid
@@ -141,7 +139,7 @@ class Site:
                                     """
         inputs = {
             "siteid": self.siteid,
-            "sitename": self.sitename[0],
+            "sitename": self.sitename,
             "altitude": self.altitude,
             "area": self.area,
             "sitedescription": self.sitedescription,
@@ -155,21 +153,17 @@ class Site:
 
     def find_close_sites(self, cur, dist=10000, limit=5):
         close_site = """SELECT st.*,
-                ST_SetSRID(st.geog::geometry, 4326)::geography <-> ST_SetSRID(ST_Point(%(long)s, %(lat)s), 4326)::geography AS dist
-            FROM   ndb.sites AS st
-            WHERE ST_SetSRID(st.geog::geometry, 4326)::geography <-> ST_SetSRID(ST_Point(%(long)s, %(lat)s), 4326)::geography < %(dist)s
-            ORDER BY dist
-            LIMIT %(lim)s;"""
+                        ST_SetSRID(st.geog::geometry, 4326)::geography <-> ST_SetSRID(ST_Point(%(long)s, %(lat)s), 4326)::geography AS dist
+                        FROM   ndb.sites AS st
+                        WHERE ST_SetSRID(st.geog::geometry, 4326)::geography <-> ST_SetSRID(ST_Point(%(long)s, %(lat)s), 4326)::geography < %(dist)s
+                        ORDER BY dist
+                        LIMIT %(lim)s;"""
         try:
-            cur.execute(
-                close_site,
-                {
-                    "long": self.geog.longitude,
-                    "lat": self.geog.latitude,
-                    "dist": dist,
-                    "lim": limit,
-                },
-            )
+            params = {"long": self.geog.longitude,
+                      "lat": self.geog.latitude,
+                      "dist": dist,
+                      "lim": limit}
+            cur.execute(close_site, params)
             close_sites = cur.fetchall()
         except Exception as e:
             close_sites = None
@@ -181,21 +175,18 @@ class Site:
             siteresponse = type("SiteResponse", (), {})()  # Create a simple object
             siteresponse.match = {}
             siteresponse.message = []
-        attributes = [
-            "sitename",
-            "altitude",
-            "area",
-            "sitedescription",
-            "notes",
-            "geog",
-        ]
+        attributes = ["sitename",
+                      "altitude",
+                      "area",
+                      "sitedescription",
+                      "notes",
+                      "geog"]
         updated_attributes = []
         for attr in attributes:
             if getattr(self, attr) != getattr(other, attr):
                 siteresponse.matched[attr] = False
-                siteresponse.message.append(
-                    f"? {attr} does not match. Update set to {overwrite[attr]}"
-                )
+                siteresponse.message.append(f"? {attr} does not match."
+                                            f" Update set to {overwrite[attr]}.")
             else:
                 siteresponse.valid.append(True)
                 siteresponse.message.append(f"✔  {attr} match.")
@@ -205,14 +196,12 @@ class Site:
         return self
 
     def compare_site(self, other):
-        attributes = [
-        'siteid', 'sitename', 'altitude', 'area',
-        'sitedescription', 'notes', 'geog']
-
+        attributes = ['siteid', 'sitename', 'altitude', 'area',
+                      'sitedescription', 'notes', 'geog']
         differences = []
 
         for attr in attributes:
             if getattr(self, attr) != getattr(other, attr):
-                differences.append(f"CSV {attr}: {getattr(self, attr)} != Neotoma {attr}: {getattr(other, attr)}")
-
+                differences.append(f"CSV {attr}: {getattr(self, attr)} != Neotoma {attr}: "
+                                   f"{getattr(other, attr)}")
         return differences

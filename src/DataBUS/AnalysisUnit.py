@@ -13,8 +13,8 @@ class AnalysisUnit:
         igsn=None,
         notes=None,
         recdatecreated=None,
-        recdatemodified=None,
-    ):
+        recdatemodified=None):
+        
         self.analysisunitid = analysisunitid  # int
         self.collectionunitid = collectionunitid  # int
         self.analysisunitname = analysisunitname  # str

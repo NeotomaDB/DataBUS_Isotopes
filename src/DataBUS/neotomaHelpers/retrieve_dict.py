@@ -24,7 +24,7 @@ def retrieve_dict(yml_dict, sql_column):
             exc_info=True,
         )
     # result = [d for d in yml_dict['metadata'] if d['neotoma'] == sqlColumn]
-    result = [d for d in yml_dict["metadata"] if re.search(sql_column, d["neotoma"])]
+    result = [d for d in yml_dict["metadata"] if re.search(fr'\b{sql_column}\b', d["neotoma"])]
     if result is None:
         warnings.warn("No matching dictionary entry found.")
     else:

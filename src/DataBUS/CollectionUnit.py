@@ -22,8 +22,8 @@ class CollectionUnit:
         slopeangle=None,
         location=None,
         notes=None,
-        geog=None,
-    ):
+        geog=None):
+
         self.collectionunitid = collectionunitid
         if isinstance(handle, list) and len(handle) > 1:
             raise ValueError(
@@ -89,8 +89,7 @@ class CollectionUnit:
             self.substrateid = None
         else:
             self.substrateid = int(substrateid)
-            
-
+        
         if slopeaspect is None:
             self.slopeaspect = None
         else:

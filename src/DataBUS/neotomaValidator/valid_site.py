@@ -5,15 +5,11 @@ from DataBUS import Geog, WrongCoordinates, Site, SiteResponse
 def valid_site(cur, yml_dict, csv_file):
     """
     Validate if the provided site details correspond to a new and valid site entry.
-
     This function checks the validity of a site based on its coordinates, name, and other attributes.
     It returns a SiteResponse object containing:
-        - `valid`: Boolean indicating if the site validation was successful.
+        - `validAll`: Boolean indicating if the site validation was successful.
         - `sitelist`: List of Site objects that are close to the provided coordinates.
         - `hemisphere`: String indicating the hemisphere of the site based on its coordinates.
-        - `matched`: Dictionary with details about name and distance matching with nearby sites, including:
-            - `namematch`: Boolean indicating if a nearby site has the same name as the provided site.
-            - `distmatch`: Boolean indicating if a nearby site's coordinates exactly match the provided coordinates.
         - `message`: List of messages detailing the validation process.
 
     Args:
@@ -24,22 +20,17 @@ def valid_site(cur, yml_dict, csv_file):
     Returns:
         SiteResponse: Contains the results of the site validation.
     """
-
     response = SiteResponse()
-    params = [
-        "siteid",
-        "sitename",
-        "altitude",
-        "area",
-        "sitedescription",
-        "notes",
-        "geog",
-    ]
+    params = ["siteid", "sitename", "altitude",
+              "area", "sitedescription", "notes",
+              "geog"]
 
-    inputs = nh.clean_inputs(nh.pull_params(params, yml_dict, csv_file, "ndb.sites"))
+    inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.sites")
     overwrite = nh.pull_overwrite(params, yml_dict, "ndb.sites")
+
     if 'geog.latitude' and 'geog.longitude' in inputs:
-        inputs['geog'] = (inputs["geog.latitude"][0], inputs["geog.longitude"][0])
+        inputs['geog'] = (inputs["geog.latitude"], inputs["geog.longitude"])
+        del inputs["geog.latitude"], inputs["geog.longitude"]
     try:
         assert all(
             inputs.get(key) is not None and inputs[key] != []
@@ -50,32 +41,21 @@ def valid_site(cur, yml_dict, csv_file):
             f"✗ The template must contain a sitename and coordinates."
         )
         response.valid.append(False)
-
     try:
-        geog = Geog((inputs["geog"][0], inputs["geog"][1]))
+        inputs["geog"] = Geog((inputs["geog"][0], inputs["geog"][1]))
         response.message.append(
-            f"? This set is expected to be " f"in the {geog.hemisphere} hemisphere."
+            f"? This set is expected to be " f"in the {inputs['geog'].hemisphere} hemisphere."
         )
     except (TypeError, WrongCoordinates) as e:
         response.valid.append(False)
         response.message.append(str(e))
-        geog = None
+        inputs['geog'] = None
     try:
-        # site = Site(**inputs, geog=geog)
-        site = Site(
-            siteid=inputs["siteid"],
-            sitename=inputs["sitename"],
-            altitude=inputs["altitude"],
-            area=inputs["area"],
-            sitedescription=inputs["sitedescription"],
-            notes=inputs["notes"],
-            geog=geog,
-        )
-        
+        site = Site(**inputs)
     except (ValueError, TypeError, Exception) as e:
         response.valid.append(False)
         response.message.append(e)
-        site = Site()
+        site = Site(sitename="Placeholder")
     if site.siteid is None:
         close_sites = site.find_close_sites(cur, limit=3)
         if close_sites:
@@ -106,7 +86,7 @@ def valid_site(cur, yml_dict, csv_file):
             )
         else:
             response.valid.append(True)
-            response.closesites = [Site()]
+            response.closesites = []
             response.message.append("✔  There are no sites close to the proposed site.")
     else:
         response.message.append(
@@ -130,9 +110,7 @@ def valid_site(cur, yml_dict, csv_file):
                     altitude=site_data[6],
                     area = site_data[7],
                     sitedescription=site_data[8],
-                    notes=site_data[9]           
-                )
-
+                    notes=site_data[9])
                 msg = site.compare_site(new_site)
                 response.message.append(f"? Are sites equal: {site == new_site}.")
                 if msg:
@@ -140,7 +118,6 @@ def valid_site(cur, yml_dict, csv_file):
                                             f"Verify that the information is correct.")
                     for i in msg:
                         response.message.append(f"{i}")
-
                     required = nh.pull_required(params, yml_dict, table="ndb.sites")
                     required_k = [key for key, value in required.items() if value]
                     required_k.remove('geog')
@@ -151,7 +128,6 @@ def valid_site(cur, yml_dict, csv_file):
                         response.valid.append(False)
                     else:
                         response.message.append("Some fields differ, but they are not required fields.")
-
                 response.matched["distmatch"] = site.geog == new_site.geog
                 response.message.append(new_site)
                 if not response.matched["distmatch"]:
@@ -163,8 +139,7 @@ def valid_site(cur, yml_dict, csv_file):
                         close_site = Site(
                             siteid=site_data[0],
                             sitename=site_data[1],
-                            geog=Geog((site_data[3], site_data[2])),
-                        )
+                            geog=Geog((site_data[3], site_data[2])))
                         close_site.distance = round(site_data[13], 0)
                         response.closesites.append(close_site)
                     if not overwrite["geog"]:
@@ -183,6 +158,5 @@ def valid_site(cur, yml_dict, csv_file):
                         )
                 else:
                     response.message.append("✔  Coordinates match")
-
     response.validAll = all(response.valid)
     return response

@@ -7,6 +7,8 @@ def insert_data_long(cur, yml_dict, filename, uploader):
     """"""
     response = Response()
     df = pd.read_csv(filename)
+    df = df.rename(columns={'NAME IN REFERENCE': 'scientificName',
+                       'NO SPEC': 'organismQuantity'})
     columns_to_check = ['scientificName', 'organismQuantity', 'variableelementid', 'variablecontextid']
     existing_columns = [col for col in columns_to_check if col in df.columns]
 
@@ -31,7 +33,7 @@ def insert_data_long(cur, yml_dict, filename, uploader):
         #for i in range(validator["sample"].sa_counter):
         if val_dict['value']:
             if isinstance(val_dict['value'], (int, float)) and val_dict['value'] not in {0, 1}:
-                val_dict['unitcolumn'] = 'NISP'
+                val_dict['unitcolumn'] = 'present/absent'
             else:
                 val_dict['unitcolumn'] = 'present/absent'
         else:

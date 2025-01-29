@@ -7,7 +7,6 @@ import argparse
 import os
 
 from .clean_column import clean_column
-from .clean_inputs import clean_inputs
 from .pull_overwrite import pull_overwrite
 from .pull_required import pull_required
 from .pull_params import pull_params
@@ -20,5 +19,4 @@ from .parse_arguments import parse_arguments
 from .excel_to_yaml import excel_to_yaml
 from .process_inputs import process_inputs
 from .get_contacts import get_contacts
-from .clean_numbers import clean_numbers
 from .retrieve_dict import retrieve_dict
