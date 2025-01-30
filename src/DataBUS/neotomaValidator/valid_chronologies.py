@@ -67,7 +67,7 @@ def valid_chronologies(cur, yml_dict, csv_file):
     # to add for lead models because they use more calendar format
 
     if inputs["agetype"]: 
-        inputs["agetype"].replace("cal yr BP" 'Calendar years BP')
+        inputs["agetype"].replace("cal yr BP", 'Calendar years BP')
         agetype_query = """SELECT agetypeid FROM ndb.agetypes
                            WHERE LOWER(agetype) = %(agetype)s"""
         cur.execute(agetype_query, {'agetype': inputs["agetype"].lower()})
