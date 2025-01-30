@@ -13,76 +13,40 @@ def insert_analysisunit(cur, yml_dict, csv_file, uploader):
     Returns:
         _int_: _The integer value of the newly created siteid from the Neotoma Database._
     """
-    params = [
-        "analysisunitname",
-        "depth",
-        "thickness",
-        "faciesid",
-        "mixed",
-        "igsn",
-        "notes",
-        "recdatecreated",
-        "recdatemodified",
-    ]
+    params = ["analysisunitname", "depth", "thickness",
+              "faciesid", "mixed", "igsn", "notes",
+              "recdatecreated", "recdatemodified"]
     try:
-        inputs = nh.clean_inputs(
-            nh.pull_params(params, yml_dict, csv_file, "ndb.analysisunits")
-        )
+        inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.analysisunits")
     except Exception as e:
         response.validAll = False
         response.valid.append(False)
-        response.message.append(f"AU Elements in the CSV file are not properly inserted. Please verify the CSV file")
+        response.message.append(f"AU Elements in the CSV file are not formatted properly. Please verify the CSV file")
 
-    inputs["database"] = nh.retrieve_dict(yml_dict, "ndb.datasetdatabases.databasename")
-    if inputs["database"][0]['value'].lower() == "East Asian Nonmarine Ostracod Database".lower():
-            inputs["analysisunitname"] = f"EANOD/{uploader['collunitid'].handle}/OST"
-
-    ## Placeholder
     if not inputs['mixed']:
         inputs['mixed'] = False
-    ## Placeholder
 
     response = AUResponse()
-
-    kv = {
-        "mixed": False,
-        "faciesid": None,
-        "igsn": None,
-        "notes": None,
-        "recdatecreated": None,
-        "recdatemodified": None,
-    }
-
-    for k in kv:
-        if (inputs[k] is None or isinstance(inputs[k], bool) or len(inputs[k]) == 1) and inputs['depth']:
-            inputs[k] = [inputs[k]] * len(inputs["depth"]) if inputs[k] is not None else [kv[k]] * len(inputs["depth"])
 
     if not uploader['collunitid'].cuid:
         response.message.append(f"✗ CU ID needed to create Analysis Unit"
                                 f" Placeholder `1` will be used to create log.")
         uploader['collunitid'].cuid = 1
 
-    if inputs['depth']:
-        for i in range(0, len(inputs["depth"])):
+    if inputs['depth'] and isinstance(inputs['depth'], list):
+        iterable_params = {k: v for k, v in inputs.items() if isinstance(v, list)}
+        static_params = {k: v for k, v in inputs.items() if not isinstance(v, list)}
+        for values in zip(*iterable_params.values()):
             try:
-                au = AnalysisUnit(
-                collectionunitid=uploader["collunitid"].cuid,
-                analysisunitname=inputs["analysisunitname"],
-                depth=inputs["depth"][i],
-                thickness=inputs["thickness"][i],
-                faciesid=inputs["faciesid"][i],
-                mixed=inputs["mixed"][i],
-                igsn=inputs["igsn"][i],
-                notes=inputs["notes"][i],
-                recdatecreated=inputs["recdatecreated"][i],
-                recdatemodified=inputs["recdatemodified"][i],
-            )
-  
+                kwargs = dict(zip(iterable_params.keys(), values))
+                kwargs.update(static_params) 
+                AnalysisUnit(**kwargs)
+                response.valid.append(True)
             except Exception as e:
-                response.message.append(
-                    f"✗ Could not create Analysis Unit, " f"verify entries: \n {e}"
-                )
-                au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid, mixed=False)
+                response.message.append(f"✗ Could not create Analysis Unit, " 
+                                        f"verify entries: \n {e}")
+                au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid, 
+                                  mixed=False)
             try:
                 auid = au.insert_to_db(cur)
                 if all(response.valid) == True:
@@ -104,23 +68,13 @@ def insert_analysisunit(cur, yml_dict, csv_file, uploader):
             response.auid.append(auid)
     else:
         try:
-            au = AnalysisUnit(
-                    collectionunitid=uploader["collunitid"].cuid,
-                    analysisunitname=inputs["analysisunitname"],
-                    depth=inputs["depth"],
-                    thickness=inputs["thickness"],
-                    faciesid=inputs["faciesid"],
-                    mixed=inputs["mixed"],
-                    igsn=inputs["igsn"],
-                    notes=inputs["notes"],
-                    recdatecreated=inputs["recdatecreated"],
-                    recdatemodified=inputs["recdatemodified"],
-                )
+            inputs['collectionunitid'] = uploader["collunitid"].cuid
+            au = AnalysisUnit(**inputs)
         except Exception as e:
-            response.message.append(
-                f"✗ Could not create Analysis Unit, " f"verify entries: \n {e}"
-            )
-            au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid, mixed=False)
+            response.message.append(f"✗ Could not create Analysis Unit, " 
+                                    f"verify entries: \n {e}")
+            au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid, 
+                              mixed=False)
         try:
             auid = au.insert_to_db(cur)
             response.message.append(f"✔ Added Analysis Unit {auid}.")

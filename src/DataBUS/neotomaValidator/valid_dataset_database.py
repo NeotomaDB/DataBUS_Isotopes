@@ -16,7 +16,6 @@ def valid_dataset_database(cur, yml_dict):
             - 'databaseid' (int): ID of the associated database or NaN if not available.
             - 'valid' (bool): Indicates if the insertion was successful.
     """
-    response = {"databasename": None, "valid": list(), "message": list()}
     response = Response()
 
     db_name = nh.retrieve_dict(yml_dict, "ndb.datasetdatabases.databasename")

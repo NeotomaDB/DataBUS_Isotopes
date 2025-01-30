@@ -29,18 +29,9 @@ def insert_dataset_database(cur, yml_dict, uploader):
     if inputs["databaseid"]:
         inputs["databaseid"] = inputs["databaseid"][0]
     try:
-        db = DatasetDatabase(
-            datasetid=int(uploader["datasetid"].datasetid),
-            databaseid=int(inputs["databaseid"]),
-        )
+        db = DatasetDatabase(datasetid=int(uploader["datasetid"].datasetid),
+                             databaseid=int(inputs["databaseid"]))
         response.valid.append(True)
-    except Exception as e:
-        db = DatasetDatabase(
-            datasetid=int(uploader["datasetid"].datasetid), databaseid=None
-        )
-        response.message.append(f"✗ Database information is not correct. {e}")
-        response.valid.append(False)
-    finally:
         try:
             db.insert_to_db(cur)
             response.valid.append(True)
@@ -48,6 +39,11 @@ def insert_dataset_database(cur, yml_dict, uploader):
         except Exception as e:
             response.message.append(f"✗ Cannot add DatasetDatabase: {e}")
             response.valid.append(False)
+    except Exception as e:
+        db = DatasetDatabase(datasetid=int(uploader["datasetid"].datasetid), 
+                             databaseid=None)
+        response.message.append(f"✗ Database information is not correct. {e}")
+        response.valid.append(False)
 
     response.databaseid = inputs["databaseid"]
     response.validAll = all(response.valid)

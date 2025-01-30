@@ -25,12 +25,12 @@ def valid_sample(cur, yml_dict, csv_file, validator):
     inputs["labnumber"] = inputs["labnumber"][0]["value"]
 
     response.sa_counter = 0
+    get_taxonid = """SELECT * FROM ndb.taxa 
+                     WHERE LOWER(taxonname) %% %(taxonname)s;"""
     for j in range(0, validator["analysisunit"].aucounter):
         response.sa_counter += 1
         if isinstance(inputs['taxonname'], str):
             inputs['taxonname']=inputs['taxonname'].lower()
-        get_taxonid = """SELECT * FROM ndb.taxa 
-                         WHERE LOWER(taxonname) %% %(taxonname)s;"""
         cur.execute(get_taxonid, {"taxonname": inputs["taxonname"]})
         taxonid = cur.fetchone()
         if taxonid != None:

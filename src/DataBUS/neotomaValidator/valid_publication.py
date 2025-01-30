@@ -3,52 +3,59 @@ from DataBUS import Publication, Response
 import requests
 import re
  
-def valid_publication(cur, yml_dict, csv_file, validator):
+def valid_publication(cur, yml_dict, csv_file):
     """
-    Validates publication data into Neotoma.
-
-    
+    Validates a publication based on given parameters and updates the response object accordingly.
+    Parameters:
+        cur (psycopg2.cursor): Database cursor to execute SQL queries.
+        yml_dict (dict): Dictionary containing YAML configuration data.
+        csv_file (str): Path to the CSV file containing publication data.
+    Returns:
+        Response: An object containing validation messages and status.
     """
     response = Response()
 
-    params = [
-        "doi", "publicationid", "citation"
-    ]
-    inputs = nh.clean_inputs(
-        nh.pull_params(params, yml_dict, csv_file, "ndb.publications")
-    )
+    params = ["doi", "publicationid", "citation"]
+    inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.publications")
     if inputs["publicationid"]:
-        inputs["publicationid"] = [
-            value if value != "NA" else None for value in inputs["publicationid"]
-        ]
+        inputs["publicationid"] = [value if value != "NA" else None for value in inputs["publicationid"]]
         inputs["publicationid"] = inputs["publicationid"][0]
 
-    
     doi_pattern = r"^10\.\d{4,9}/[-._;()/:A-Z0-9]+$"
-
+    cit_q = """
+            SELECT *
+            FROM ndb.publications
+            WHERE citation IS NOT NULL
+            ORDER BY similarity(LOWER(citation), %(cit)s) DESC
+            LIMIT 1; """
     if inputs['publicationid'] is None:
         response.message.append(f"? No DOI present")
         response.valid.append(True)
         if inputs['citation']:
-            for cit in inputs['citation']:
-                cit_q = """
-                        SELECT *
-                        FROM ndb.publications
-                        WHERE citation IS NOT NULL
-                        ORDER BY similarity(LOWER(citation), %(cit)s) DESC
-                        LIMIT 1; """
-                cur.execute(cit_q, {'cit': cit.lower()})
+            if isinstance(inputs['citation'], str): 
+                cur.execute(cit_q, {'cit': inputs['citation'].lower()})
                 obs = cur.fetchall()
-                if obs:
-                    pub_id = obs[0]
+                pub_id = obs[0] if obs is not None else None
+                if pub_id:
                     response.message.append(f"✔  Found Publication: "
-                                            f"{pub_id[3]} in Neotoma")
+                                            f"{obs[0][3]} in Neotoma")
                     response.valid.append(True)
+            elif isinstance(inputs['citation'], list):
+                inputs['citation'] = list(set(inputs['citation']))
+                counter = 0
+                for cit in inputs['citation']:
+                    cur.execute(cit_q, {'cit': cit.lower()})
+                    obs = cur.fetchall()
+                    pub_id = obs[0] if obs is not None else None
+                    if pub_id:
+                        response.message.append(f"✔  Found Publication: "
+                                                f"{obs[0][3]} in Neotoma")
+                        response.valid.append(True)
     else:
         try:
             inputs['publicationid'] = int(inputs['publicationid'])
         except Exception as e:
-            response.message.append("Cannot coerce publication ID to integer. Try as DOI.")
+            response.message.append("Cannot coerce publication ID to integer. Trying as DOI.")
         if isinstance(inputs['publicationid'], int):
             pub_query = """
                         SELECT * FROM ndb.publications
@@ -116,7 +123,7 @@ def valid_publication(cur, yml_dict, csv_file, validator):
                     response.message.append("✗  Publication cannot be created {e}")
                     #pub = Publication()
             else:
-                response.message.append("? Text found in reference column but "
+                response.message.append(f"? Text found in reference column but "
                                         f"it does not meet DOI standards"
                                         f"of citation not given."
                                         f"Publication info will not be uploaded.")

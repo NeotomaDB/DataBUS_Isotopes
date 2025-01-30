@@ -1,7 +1,7 @@
 import DataBUS.neotomaHelpers as nh
 from DataBUS import Geog, WrongCoordinates, Site, SiteResponse
 import importlib.resources
-
+ 
 with importlib.resources.open_text("DataBUS.sqlHelpers", "upsert_site.sql") as sql_file:
     upsert_query = sql_file.read()
 
@@ -27,46 +27,29 @@ def insert_site(cur, yml_dict, csv_file):
             - sitelist (list): List of site objects involved in the operation.
     """
     response = SiteResponse()
-    params = [
-        "siteid",
-        "sitename",
-        "altitude",
-        "area",
-        "sitedescription",
-        "notes",
-        "geog",
-    ]
-    inputs = nh.clean_inputs(nh.pull_params(params, yml_dict, csv_file, "ndb.sites"))
+    params = ["siteid", "sitename", "altitude", "area",
+              "sitedescription", "notes", "geog"]
+    
+    inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.sites")
     overwrite = nh.pull_overwrite(params, yml_dict, "ndb.sites")
-
     if 'geog.latitude' and 'geog.longitude' in inputs:
-        inputs['geog'] = (inputs["geog.latitude"][0], inputs["geog.longitude"][0])
+        inputs['geog'] = (inputs["geog.latitude"], inputs["geog.longitude"])
+        del inputs["geog.latitude"], inputs["geog.longitude"]
 
     try:
-        geog = Geog((inputs["geog"][0], inputs["geog"][1]))
-        response.message.append(
-            f"? This set is expected to be " f"in the {geog.hemisphere} hemisphere."
-        )
+        inputs["geog"]  = Geog((inputs["geog"][0], inputs["geog"][1]))
     except (TypeError, WrongCoordinates) as e:
         response.valid = False
         response.message.append(str(e))
-        geog = None
+        inputs["geog"]  = None
 
     try:
-        site = Site(
-            siteid=inputs["siteid"],
-            sitename=inputs["sitename"],
-            altitude=inputs["altitude"],
-            area=inputs["area"],
-            sitedescription=inputs["sitedescription"],
-            notes=inputs["notes"],
-            geog=geog,
-        )
+        site = Site(**inputs)
         response.valid.append(True)
     except (ValueError, TypeError, Exception) as e:
         response.valid.append(False)
         response.message.append(e)
-        site = Site()
+        site = Site(sitename="Placeholder")
 
     if site.siteid is not None:
         response.message.append(f"Site ID has been given: {site.siteid}")

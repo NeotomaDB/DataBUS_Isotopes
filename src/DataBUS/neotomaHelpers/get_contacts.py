@@ -27,20 +27,20 @@ def get_contacts(cur, contacts_list):
     baseid = 1
     contids = list()
     for i in contacts_list:
+        i = i.strip()
         cur.execute(get_contact, {"name": i})
         data = cur.fetchone()
         if data:
             d_name = data[1]
             d_id = data[0]
+            simm = data[2]
             result = d_name.startswith(i.rstrip("."))
             result_2 = match_abbreviation_to_full(d_name, i)
-            if (result or result_2) == True:
+            if (result or result_2 or (simm == 1)) == True:
                 contids.append({"name": d_name, "id": d_id, "order": baseid})
             else:
                 contids.append({"name": i, "id": None, "order": baseid})
             baseid +=1
         else:
             contids.append({"name": i, "id": None, "order": None})
-
-    
     return contids 

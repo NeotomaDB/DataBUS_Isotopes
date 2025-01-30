@@ -2,9 +2,8 @@ import DataBUS.neotomaHelpers as nh
 from DataBUS import Geog, WrongCoordinates, CollectionUnit, CUResponse
 import datetime 
 import importlib.resources
-
-with importlib.resources.open_text("DataBUS.sqlHelpers", "upsert_collunit.sql"
-                                   ) as sql_file:
+with importlib.resources.open_text("DataBUS.sqlHelpers", 
+                                   "upsert_collunit.sql") as sql_file:
     upsert_query = sql_file.read()
 
 def insert_collunit(cur, yml_dict, csv_file, uploader):
@@ -22,30 +21,14 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
     """
     response = CUResponse()
     notes = ""
-    params = [
-        "collectionunitid",
-        "handle",
-        "core",
-        "depenvtid",
-        "collunitname",
-        "colldate",
-        "colldevice",
-        "gpsaltitude",
-        "gpserror",
-        "waterdepth",
-        "substrateid",
-        "slopeaspect",
-        "slopeangle",
-        "location",
-        "notes",
-        "geog",
-    ]
-
-    substitutions = {'lake': 'lacustrine'}
+    params = ["collectionunitid", "handle", "core", "depenvtid", "colltypeid",
+              "collunitname", "colldate", "colldevice", "gpsaltitude",
+              "gpserror", "waterdepth", "substrateid", "slopeaspect",
+              "slopeangle", "location", "notes", "geog", "geog.latitude", 
+              "geog.longitude"]
+    
     try:
-        inputs = nh.clean_inputs(
-            nh.pull_params(params, yml_dict, csv_file, "ndb.collectionunits")
-        )
+        inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.collectionunits")
     except Exception as e:
         error_message = str(e)
         try:
@@ -57,6 +40,7 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
                 if isinstance(new_date, str) and len(new_date) > 4:
                     if len(new_date) == 7 and new_date[4] == '-' and new_date[5:7].isdigit():
                         new_date = f"{new_date}-01"
+                        new_date = new_date.replace('/', '-')
                         datetime.strptime(date_string, "%Y-%m-%d")
                         notes = notes + f""
                     elif new_date.endswith("--") or new_date.endswith("//"):
@@ -65,8 +49,7 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
                     else:
                         notes = notes + f""
             params.remove("colldate")
-            inputs = nh.clean_inputs(
-            nh.pull_params(params, yml_dict, csv_file, "ndb.collectionunits") ) 
+            inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.collectionunits")
             inputs["colldate"] = new_date
             if not inputs["notes"]:
                 inputs["notes"] = notes
@@ -75,46 +58,35 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
             response.valid.append(True)
         except Exception as inner_e:
             response.validAll = False
-            response.message.append("CU parameters cannot be properly extracted. {e}\n")
-            response.message.append(str(inner_e))
+            response.message.append(f"CU parameters cannot be properly extracted. {e}\n"
+                                    f"{inner_e}")
             return response
-        
-    inputs["colltypeid"] = nh.retrieve_dict(yml_dict, 
-                                            "ndb.collectionunits.colltypeid")[0]["value"].lower()
-
+    
     if inputs["colltypeid"]:
         query1 = """SELECT colltypeid FROM ndb.collectiontypes 
                     WHERE LOWER(colltype) = %(colltype)s"""
         cur.execute(query1, {'colltype': inputs['colltypeid'].lower()})
         inputs["colltypeid"] = cur.fetchone()
-
-    if inputs["colltypeid"]:
-        inputs["colltypeid"] = inputs["colltypeid"][0]
-
-    if not inputs["collunitname"]:
-        inputs["database"] = nh.retrieve_dict(yml_dict, "ndb.datasetdatabases.databasename")
-        if inputs["database"][0]['value'].lower() == "East Asian Nonmarine Ostracod Database".lower():
-            inputs["collunitname"] = f"EANOD/{inputs['handle'][0]}/OST"
-
+        if inputs["colltypeid"]:
+            inputs["colltypeid"] = inputs["colltypeid"][0]
+    
+    if 'geog.latitude' and 'geog.longitude' in inputs:
+        inputs['geog'] = (inputs["geog.latitude"], inputs["geog.longitude"])
+        del inputs["geog.latitude"], inputs["geog.longitude"]
+    
     if inputs['geog']:
         try:
-            geog = Geog((inputs["geog"][0], inputs["geog"][1]))
-            response.message.append(
-                f"? This set is expected to be " f"in the {geog.hemisphere} hemisphere."
-            )
+            inputs['geog'] = Geog((inputs["geog"][0], inputs["geog"][1]))
         except (TypeError, WrongCoordinates) as e:
             response.valid.append(False)
             response.message.append(str(e))
-            geog = None
+            inputs['geog'] = None
     else:
-        geog = None
+        inputs['geog'] = None
 
     overwrite = nh.pull_overwrite(params, yml_dict, "ndb.collectionunits")
 
-    if inputs["depenvtid"] and isinstance(inputs["depenvtid"], list):
-        inputs["depenvtid"] = inputs["depenvtid"][0]
-        if inputs["depenvtid"].lower() in substitutions:
-            inputs["depenvtid"] = substitutions[inputs["depenvtid"].lower()]
+    if inputs["depenvtid"]:
         query = """SELECT depenvtid FROM ndb.depenvttypes
                    WHERE LOWER(depenvt) = %(depenvt)s"""
         cur.execute(query, {"depenvt": inputs["depenvtid"].lower()})
@@ -123,43 +95,23 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
             inputs["depenvtid"] = depenv[0]
         else:
             if inputs["notes"]:
-                inputs["notes"] = inputs["notes"] + f"Dep. Env.{inputs['depenvtid'][0]}"
+                inputs["notes"] = inputs["notes"] + f"Dep. Env.{inputs['depenvtid']}"
                 inputs["depenvtid"] = None
             else:
-                inputs["notes"] = f"Dep. Env.{inputs['depenvtid'][0]}"
+                inputs["notes"] = f"Dep. Env.{inputs['depenvtid']}"
                 inputs["depenvtid"] = None
-
     if isinstance(inputs["handle"], list):
         response.handle = inputs["handle"][0]
     else:
         response.handle = inputs["handle"]
     try:
-        cu = CollectionUnit(
-            siteid=uploader["sites"].siteid,
-            collectionunitid=inputs["collectionunitid"],
-            handle=inputs["handle"],
-            core=inputs["core"],
-            colltypeid=inputs["colltypeid"],
-            depenvtid=inputs["depenvtid"],
-            collunitname=inputs["collunitname"],
-            colldate=inputs["colldate"],
-            colldevice=inputs["colldevice"],
-            gpsaltitude=inputs["gpsaltitude"],
-            gpserror=inputs["gpserror"],
-            waterdepth=inputs["waterdepth"],
-            substrateid=inputs["substrateid"],
-            slopeaspect=inputs["slopeaspect"],
-            slopeangle=inputs["slopeangle"],
-            location=inputs["location"],
-            notes=inputs["notes"],
-            geog=geog,
-        )
+        inputs['siteid'] = uploader["sites"].siteid
+        cu = CollectionUnit(**inputs)
         response.valid.append(True)
         response.message.append("✔  Added Collection Unit")
-    except Exception as e:  #  be more informative
-        print(e)
+    except Exception as e:  
         cu = CollectionUnit(
-            siteid=uploader["sites"].siteid, handle="Pholder", geog=geog
+            siteid=uploader["sites"].siteid, handle="Placeholder", geog=inputs['geog']
         )
         response.valid.append(False)
         response.message.append("✗ CU cannot be created {e}")
@@ -194,7 +146,7 @@ def insert_collunit(cur, yml_dict, csv_file, uploader):
                     location=str(coll_info[16]),
                     notes=str(coll_info[17]),
                 )
-            except Exception as e:  # more comments
+            except Exception as e:
                 response.valid.append(False)
                 response.message.append(
                     f"✗ Cannot create Collection Unit from Neotoma Data: {e}"

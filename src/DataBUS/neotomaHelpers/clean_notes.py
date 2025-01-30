@@ -1,7 +1,7 @@
 """Function to clean notes"""
 
-def reorder_dict(d):
-    priority = {"Original sample number": 0, "Name In Publication": 1}
+def reorder_dict(d, name = "Name In Publication"):
+    priority = {"Original sample number": 0, name : 1}
     sorted_items = sorted(d.items(), key=lambda x: priority.get(x[0], float('inf')))
     return dict(sorted_items)
 
@@ -18,7 +18,7 @@ def clean_notes(notes = None, name = None):
         single_vals = {k.replace('*', ''): v for d in notes for k, v in d.items() if isinstance(v, (int, float, str))}
         single_vals.update(mapped_vals)
         
-        result = reorder_dict(single_vals)
+        result = reorder_dict(single_vals, name)
         result = f"{result}"
     else:
         result = None

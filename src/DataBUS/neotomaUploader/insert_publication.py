@@ -5,65 +5,62 @@ import re
 
 def insert_publication(cur, yml_dict, csv_file, uploader):
     """
-    Inserts publication data into Neotoma.
-
-    
+    Inserts a publication into the database.
+    Parameters:
+        cur (psycopg2.cursor): The database cursor to execute SQL commands.
+        yml_dict (dict): A dictionary containing YAML configuration data.
+        csv_file (str): The path to the CSV file containing publication data.
+        uploader (str): The name of the uploader.
+    Returns:
+        Response: An object containing messages, validity status, and publication ID if applicable.
     """
     response = Response()
-
-    params = [
-        "doi", "publicationid", "citation"
-    ]
-    inputs = nh.clean_inputs(
-        nh.pull_params(params, yml_dict, csv_file, "ndb.publications")
-    )
-
+    params = ["doi", "publicationid", "citation"]
+    inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.publications")
+    inputs['citation'] = list(set(inputs['citation']))
     if inputs["publicationid"]:
-        inputs["publicationid"] = [
-            value if value != "NA" else None for value in inputs["publicationid"]
-        ]
+        inputs["publicationid"] = [value if value != "NA" else None for value in inputs["publicationid"]]
         inputs["publicationid"] = inputs["publicationid"][0]
+        
     doi_pattern = r"^10\.\d{4,9}/[-._;()/:A-Z0-9]+$"
-
+    cit_q = """SELECT *
+               FROM ndb.publications
+               WHERE citation IS NOT NULL
+               ORDER BY similarity(LOWER(citation), %(cit)s) DESC
+               LIMIT 1; """
+    
     dataset_pub_q = """SELECT ts.insertdatasetpublication(%(datasetid)s, 
                                                           %(publicationid)s, 
-                                                          %(primarypub)s)
-                                                          """
-    #inputs['doi'][0] = "10.1038/nature12373" #placeholder for trial.
+                                                          %(primarypub)s)"""
+
     if inputs['publicationid'] is None:
         response.message.append(f"? No DOI present")
         response.valid.append(True)
         if inputs['citation']:
             for cit in inputs['citation']:
-                cit_q = """
-                        SELECT *
-                        FROM ndb.publications
-                        WHERE citation IS NOT NULL
-                        ORDER BY similarity(LOWER(citation), %(cit)s) DESC
-                        LIMIT 1; """
-                cur.execute(cit_q, {'cit': cit.lower()})
-                obs = cur.fetchall()
-                if obs:
-                    pub_id = obs[0]
-                    response.message.append(f"✔  Found Publication: "
-                                            f"{pub_id[3]} in Neotoma")
-                    response.valid.append(True)
-                    try: 
-                        cur.execute(dataset_pub_q, {'datasetid': uploader["datasetid"].datasetid,
-                                                    'publicationid': pub_id[0],
-                                                    'primarypub': True})
+                if isinstance(inputs['citation'], str): 
+                    cur.execute(cit_q, {'cit': inputs['citation'].lower()})
+                    obs = cur.fetchall()
+                    pub_id = obs[0] if obs is not None else None
+                    if pub_id:
+                        response.message.append(f"✔  Found Publication: "
+                                                f"{obs[0][3]} in Neotoma")
                         response.valid.append(True)
-                    except Exception as e:
-                        response.message.append("Could not associate dataset ID to publication ID")
-                        response.valid.append(False)
-                else:
-                    response.message.append("✗  The publication does not exist in Neotoma.")
-                    response.valid.append(False)
+                elif isinstance(inputs['citation'], list):
+                    inputs['citation'] = list(set(inputs['citation']))
+                    for cit in inputs['citation']:
+                        cur.execute(cit_q, {'cit': cit.lower()})
+                        obs = cur.fetchall()
+                        pub_id = obs[0] if obs is not None else None
+                        if pub_id:
+                            response.message.append(f"✔  Found Publication: "
+                                                    f"{obs[0][3]} in Neotoma")
+                            response.valid.append(True)
     else:
         try:
             inputs['publicationid'] = int(inputs['publicationid'])
         except Exception as e:
-            response.message.append("Cannot coerce publication ID to integer. Try as DOI.")
+            response.message.append("")
         if isinstance(inputs['publicationid'], int):
             pub_query = """
                         SELECT * FROM ndb.publications
@@ -95,69 +92,44 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
                 else:
                     response.message.append(f"✗  No DOI {inputs['doi']} found in CrossRef")
                     data = None
-                try:
-                    pub_type = data['type']
-                    sql_neotoma = """SELECT pubtypeid FROM ndb.publicationtypes
-                                    WHERE LOWER(REPLACE(pubtype, ' ', '-')) LIKE %(pub_type)s
-                                    LIMIT 1"""
-                    cur.execute(sql_neotoma, {'pub_type': pub_type.lower()})
-                    pubtypeid = cur.fetchone()
-                    if pubtypeid:
-                        pubtypeid = pubtypeid[0]
+                pub_type = data['type']
+                sql_neotoma = """SELECT pubtypeid FROM ndb.publicationtypes
+                                WHERE LOWER(REPLACE(pubtype, ' ', '-')) LIKE %(pub_type)s
+                                LIMIT 1"""
+                cur.execute(sql_neotoma, {'pub_type': pub_type.lower()})
+                pubtypeid = cur.fetchone()
+                if pubtypeid:
+                    pubtypeid = pubtypeid[0]
 
-                    pub = Publication(pubtypeid = pubtypeid,
-                                    year = None,
-                                    citation = None,
-                                    title = data['title'][0],
-                                    journal = data['container-title'][0],
-                                    vol = data['volume'],
-                                    issue = data['journal-issue']['issue'],
-                                    pages = data['page'],
-                                    citnumber = str(data['is-referenced-by-count']),
-                                    doi = data['DOI'],
-                                    booktitle = None,
-                                    numvol = data['volume'],
-                                    edition = None,
-                                    voltitle = None,
-                                    sertitle = None,
-                                    servol = None,
-                                    publisher = data['publisher'],
-                                    url = data['URL'],
-                                    city = None,
-                                    state = None,
-                                    country = None,
-                                    origlang = data['language'],
-                                    notes = None)
-                    response.valid.append(True)
-                except Exception as e:
-                    response.valid.append(False)
-                    response.message.append("✗  Publication cannot be created {e}")
-                    #pub = Publication()
+                pub = Publication(pubtypeid = pubtypeid,
+                                  title = data['title'][0],
+                                  journal = data['container-title'][0],
+                                  vol = data['volume'],
+                                  issue = data['journal-issue']['issue'],
+                                  pages = data['page'],
+                                  citnumber = str(data['is-referenced-by-count']),
+                                  doi = data['DOI'],
+                                  numvol = data['volume'],
+                                  publisher = data['publisher'],
+                                  url = data['URL'],
+                                  origlang = data['language'])
                 try:
                     pubid = pub.insert_to_db(cur)
                     response.pub = pubid
                     response.valid.append(True)
                     response.message.append(f"✔ Added Publication {pubid}.")
-
                 except Exception as e:
-                    response.message.append(
-                        f"✗  Publication Data is not correct. Error message: {e}"
-                    )
+                    response.message.append(f"✗  Publication Data is not correct. Error message: {e}")
                     pub = Publication()
                     pubid = pub.insert_to_db(cur)
                     response.valid.append(False)
-                finally:
-                    try:
-                        dataset_pub_q = """SELECT ts.insertdatasetpublication(%(datasetid)s, 
-                                                                            %(publicationid)s, 
-                                                                            %(primarypub)s)
-                                        """
-                        cur.execute(dataset_pub_q, {'datasetid': uploader["datasetid"].datasetid,
-                                                    'publicationid': pubid,
-                                                    'primarypub': True})
-                    except Exception as e:
-                        response.message.append("Could not associate dataset ID to publication ID")
-                        response.valid.append(False)
+                try:
+                    cur.execute(dataset_pub_q, {'datasetid': uploader["datasetid"].datasetid,
+                                                'publicationid': pubid,
+                                                'primarypub': True})
+                except Exception as e:
+                    response.message.append("✗  Could not associate dataset ID to publication ID")
+                    response.valid.append(False)
             else:
                 response.message.append("? Text found in reference column but "
                                         f"it does not meet DOI standards."

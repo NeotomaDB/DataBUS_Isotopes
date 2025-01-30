@@ -1,7 +1,7 @@
 import DataBUS.neotomaHelpers as nh
 from DataBUS import Dataset, Response
 
-def insert_dataset(cur, yml_dict, csv_file, uploader):
+def insert_dataset(cur, yml_dict, csv_file, uploader, name=None):
     """
     Inserts a dataset associated with a collection unit into a database.
 
@@ -17,66 +17,50 @@ def insert_dataset(cur, yml_dict, csv_file, uploader):
             'valid' (bool): Indicates if insertions were successful.
     """
     response = Response()
-    inputs = {
-        "datasetname": nh.retrieve_dict(yml_dict, "ndb.datasets.datasetname"),
-        "datasettypeid": nh.retrieve_dict(yml_dict, "ndb.datasettypes.datasettype")[
-            0
-        ]["value"].lower(),
-        "database": nh.retrieve_dict(yml_dict, "ndb.datasetdatabases.databasename"),
-    } 
+    params = [("datasetname", "ndb.datasets.datasetname"),
+              ("datasettypeid", "ndb.datasettypes.datasettypeid"),
+              ("datasettype", "ndb.datasettypes.datasettype")]
+    inputs = {}
+    for param in params:
+        val = nh.retrieve_dict(yml_dict, param[1])
+        if val:
+            try:
+                inputs[param[0]] = val[0]['value']
+            except Exception as e:
+                response.valid.append(False)
+                response.message.append(f"✗ {param[0]} value is missing in template")
+        else:
+            inputs[param[0]] = None
 
-    if inputs["datasetname"] and isinstance(inputs["datasetname"], list):
-        if isinstance(inputs["datasetname"][0], dict):
-            if isinstance(inputs["datasetname"][0]["value"], str):
-                inputs["datasetname"] = inputs["datasetname"][0]["value"].lower()
-            else:
-                inputs["datasetname"] = inputs["datasetname"][0]["value"]
-    else:
-        inputs["datasetname"] = None
+    query = """SELECT datasettypeid 
+               FROM ndb.datasettypes 
+               WHERE LOWER(datasettype) = %(ds_type)s"""
+    
+    if inputs['datasettype'] and not(inputs['datasettypeid']):
+        cur.execute(query, {"ds_type": f"{inputs['datasettype'].lower()}"})
+        datasettypeid = cur.fetchone()
+        del inputs['datasettype']
 
-    if inputs["datasetname"] == None:
-        if inputs["database"][0]['value'].lower() == "East Asian Nonmarine Ostracod Database".lower():
-            inputs["datasetname"] = f"EANOD/{uploader['collunitid'].handle}/OST"
-        #Extract database column
-
-    inputs["notes"] = nh.clean_inputs(
-        nh.pull_params(["notes"], yml_dict, csv_file, "ndb.datasets")
-    )["notes"]
-
-    query = "SELECT datasettypeid FROM ndb.datasettypes WHERE LOWER(datasettype) = %(ds_type)s"
-    cur.execute(query, {"ds_type": f"{inputs['datasettypeid'].lower()}"})
-    inputs["datasettypeid"] = cur.fetchone()
-
-    if inputs["datasettypeid"]:
-        inputs["datasettypeid"] = inputs["datasettypeid"][0]
-
-    try:
-        ds = Dataset(
-            datasettypeid=inputs["datasettypeid"],
-            collectionunitid=uploader["collunitid"].cuid,
-            datasetname=inputs["datasetname"],
-            notes=inputs["notes"],
-        )
+    if datasettypeid:
+        inputs["datasettypeid"] = datasettypeid[0]
         response.valid.append(True)
-    except Exception as e:
+    else:
+        inputs["datasettypeid"] = None
+        response.message.append(f"✗ Dataset type is not known to Neotoma and needs to be created first")
         response.valid.append(False)
-        response.message.append(f"✗ Dataset was not created: {e}"
-                                f"Placeholder `10` will be used.")
-        ds = Dataset(
-            datasettypeid=10,
-            collectionunitid=uploader["collunitid"].cuid,
+    inputs["notes"] = nh.pull_params(["notes"], yml_dict, csv_file, "ndb.datasets", name)['notes']
+    inputs['collectionunitid'] = uploader['collunitid'].cuid
+    ds = Dataset(**inputs)
+    try:
+        response.datasetid = ds.insert_to_db(cur)
+        response.valid.append(True)
+        response.message.append(f"✔ Added Dataset {response.datasetid}.")
+    except Exception as e:
+        response.datasetid = ds.insert_to_db(cur)
+        response.valid.append(True)
+        response.message.append(
+            f"✗ Cannot add Dataset {response.datasetid}." f"Using temporary ID."
         )
-    finally:
-        try:
-            response.datasetid = ds.insert_to_db(cur)
-            response.valid.append(True)
-            response.message.append(f"✔ Added Dataset {response.datasetid}.")
-        except Exception as e:
-            response.datasetid = ds.insert_to_db(cur)
-            response.valid.append(True)
-            response.message.append(
-                f"✗ Cannot add Dataset {response.datasetid}." f"Using temporary ID."
-            )
 
     response.validAll = all(response.valid)
     return response

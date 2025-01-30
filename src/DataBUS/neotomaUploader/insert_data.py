@@ -1,144 +1,81 @@
 import DataBUS.neotomaHelpers as nh
 from DataBUS import Response, Datum, Variable
 
-
 def insert_data(cur, yml_dict, csv_file, uploader):
-    """"""
+    """
+    Inserts data into the database based on the provided YAML dictionary and CSV file.
+    Parameters:
+        cur (psycopg2.cursor): Database cursor for executing SQL queries.
+        yml_dict (dict): Dictionary containing YAML configuration data.
+        csv_file (str): Path to the CSV file containing data to be inserted.
+        uploader (dict): Dictionary containing uploader information.
+    Returns:
+        Response: An object containing the status of the insertion process, including messages and validity of each insertion.
+    """
+   
+    inputs = nh.pull_params(["value"], yml_dict, csv_file, "ndb.data")
+    params = ["variableelement", "taxon", "variableunits", "variablecontext"]
+    inputs2 = nh.pull_params(params, yml_dict, csv_file, "ndb.variables")
+    inputs = {**inputs, **inputs2}
+
     response = Response()
 
-    params = ["value"]
-    inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.data")
-   # print(inputs)
+    var_query = """SELECT variableelementid FROM ndb.variableelements
+                    WHERE LOWER(variableelement) = %(element)s;"""
+    taxon_query = """SELECT * FROM ndb.taxa 
+                     WHERE LOWER(taxonname) = %(element)s;"""
+    units_query = """SELECT variableunitsid FROM ndb.variableunits 
+                     WHERE LOWER(variableunits) = %(element)s;"""
+    #TODO variablectxt_query = """SELECT variableunitsid FROM ndb.variableunits 
+    #                             WHERE LOWER(variableunits) = %(units)s;"""
 
-    params2 = ["variableelementid", "variablecontextid"]
-    inputs2 = nh.clean_inputs(nh.pull_params(params2, yml_dict, csv_file, "ndb.data"))
-    inputs2 = {
-        p: (
-            [None] * len(uploader["samples"].sampleid)
-            if inputs2[p] is None
-            else inputs2[p]
-        )
-        for p in params2
-    }
+    par = {'variableelement': [var_query, 'variableelementid'], 
+           'taxon': [taxon_query, 'taxonid'], 
+           'variableunits': [units_query, 'variableunitsid']}
 
-    data_id = []
-    counter_ = 0
-    uncertainty_d = []
-    for val_dict in inputs:
-        data_id_u = []
-        var_id = []
+    for i in range(len(inputs['value'])):
+        entries = {}
         counter = 0
-        for i in range(len(uploader["samples"].sampleid)):
-            counter_ += 1
-            get_taxonid = (
-                """SELECT * FROM ndb.taxa WHERE LOWER(taxonname) = %(taxonname)s;"""
-            )
-            cur.execute(get_taxonid, {"taxonname": val_dict["taxonname"].lower()})
-            taxonid = cur.fetchone()
-
-            if taxonid:
-                taxonid = int(taxonid[0])
-            else:
+        for k,v in par.items():
+            cur.execute(v[0], {'element': inputs[k][i].lower()})
+            entries[v[1]] = cur.fetchone()
+            if not entries[v[1]]:
                 counter += 1
-                taxonid = counter  # To do temporary taxon
-                response.message.append(
-                    f"✗  Taxon ID for {val_dict['taxonname']} not found."
-                    f"Does it exist in Neotoma?"
-                )
+                response.message.append(f"✗  {k} ID for {inputs[k][i]} not found. "
+                                        f"Does it exist in Neotoma?")
+                entries[v[1]] = counter
                 response.valid.append(False)
-
-            val_dict["value"] = [
-                None if item == "NA" else item for item in val_dict["value"]
-            ]
-
-            # Get UnitsID
-            get_vunitsid = """SELECT variableunitsid FROM ndb.variableunits 
-                             WHERE LOWER(variableunits) = %(units)s;"""
-            cur.execute(get_vunitsid, {"units": val_dict["unitcolumn"][i].lower()})
-            vunitsid = cur.fetchone()[0]  # This is just getting the varunitsid
-            counter2 = 0
-            if vunitsid:
-                vunitsid = int(vunitsid)
-                #response.message.append(f"✔ Units ID {vunitsid} found.")
             else:
-                counter2 += 1
-                vunitsid = counter
-                response.message.append(
-                    f"✗  UnitsID for {val_dict['unitcolumn'][i].lower()} "
-                    f"not found. \nDoes it exist in Neotoma?"
-                    f"Temporary UnitsID {vunitsid} for insert."
-                )
-                response.valid.append(False)
-
-            try:
-                var = Variable(
-                    variableunitsid=vunitsid,
-                    taxonid=taxonid,
-                    variableelementid=inputs2["variableelementid"][i],
-                    variablecontextid=inputs2["variablecontextid"][i],
-                )
-                response.valid.append(True)
-            except Exception as e:
-                var = Variable(
-                    variableunitsid=vunitsid,
-                    taxonid=taxonid,
-                    variableelementid=None,
-                    variablecontextid=None,
-                )
-                response.valid.append(False)
-                response.message.append(f"✗  Variable cannot be created: {e}")
-            finally:
-                try:
-                    varid = var.get_id_from_db(cur)
-                    response.valid.append(True)
-                except Exception as e:
-                    response.valid.append(False)
-                    response.message.append(
-                        f"✗  Var ID cannot be retrieved from db: {e}"
-                    )
-                    varid = None
-
-            if varid:
-                varid = varid[0]
-                response.valid.append(True)
-                #response.message.append(f"✔ Var ID {varid} found.")
-            else:
-                response.message.append(
-                    "? Var ID not found. Executing ts.insertvariable"
-                )
-                varid = var.insert_to_db(cur)
-
-            try:
-                datum = Datum(
-                    sampleid=int(uploader["samples"].sampleid[i]),
-                    variableid=int(varid),
-                    value=val_dict["value"][i],
-                )
-                response.valid.append(True)
-            except Exception as e:
-                response.valid.append(False)
-                response.message.append(f"✗  Datum cannot be created: {e}")
-                varid = None
-                datum = Datum(
-                    sampleid=int(uploader["samples"].sampleid[i]),
-                    variableid=varid,
-                    value=None,
-                )
-            finally:
-                var_id.append(varid)
-                try:
-                    d_id = datum.insert_to_db(cur)
-                    response.valid.append(True)
-                    response.message.append(f"✔ Added Datum {d_id}")
-                except Exception as e:
-                    response.valid.append(False)
-                    response.message.append(f"✗  Datum cannot be inserted: {e}")
-                    d_id = 2
-                finally:
-                    response.data_id.append(d_id)
-                    data_id_u.append(d_id)
-        if "uncertainty" in val_dict:
-            response.uncertaintyinputs.append({"varid": var_id, "dataid": data_id_u})
+                entries[v[1]] = entries[v[1]][0]
+        var = Variable(**entries)
+        response.valid.append(True)
+        varid = var.get_id_from_db(cur)
+        if varid:
+            varid = varid[0]
+            response.valid.append(True)
+        else:
+            response.message.append(f"? Var ID not found for: "
+                                    f"variableunitsid: {inputs['variableunits'][i]}, ID: {entries['variableunitsid']},\n"
+                                    f"taxon: {inputs['taxon'][i].lower()}, ID: {entries['taxonid']},\n"
+                                    f"variableelement: {inputs['variableelement'][i]}, ID: {entries['variableelementid']},\n"
+                                    f"variablecontextid: {inputs['variablecontext']}\n")
+            response.valid.append(True)
+            varid = var.insert_to_db(cur)
+        datum = Datum(sampleid=uploader['samples'].sampleid[0], 
+                      variableid=varid, 
+                      value=inputs['value'][i])
+        try:
+            d_id = datum.insert_to_db(cur)
+            response.valid.append(True)
+            response.message.append(f"✔ Added Datum {d_id}")
+        except Exception as e:
+            response.valid.append(False)
+            response.message.append(f"✗  Datum cannot be inserted: {e}")
+            d_id = 2
+            cur.execute("ROLLBACK;") # exit error status
+            continue
 
     response.validAll = all(response.valid)
+    if response.validAll:
+        response.message.append(f"✔  Datum inserted.")
     return response

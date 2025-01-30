@@ -65,6 +65,7 @@ def pull_params(params, yml_dict, csv_template, table=None, name = None):
                                 add_unit_inputs[i].append({f"{val.get('column')}": clean_valor})
                         else:
                             add_unit_inputs[i] = clean_valor
+                            
                      # TODO Rethink this part   
                     if "unitcolumn" in val:
                         clean_valor2 = clean_column(
@@ -105,12 +106,10 @@ def pull_params(params, yml_dict, csv_template, table=None, name = None):
             else:
                 add_unit_inputs[i] = None
 
-        if params == ["value"]:
-            return add_units_inputs_list
+        if 'notes' in add_unit_inputs.keys():
+            add_unit_inputs['notes']=clean_notes(add_unit_inputs['notes'], name)
+            return add_unit_inputs
         else:
-            # add a function that fully cleans notes
-            if 'notes' in add_unit_inputs.keys():
-                add_unit_inputs['notes']=clean_notes(add_unit_inputs['notes'], name)
             return add_unit_inputs
 
     elif isinstance(table, list):

@@ -1,10 +1,9 @@
-from DataBUS import Response, Contact
+from DataBUS import Contact, Response
 import DataBUS.neotomaHelpers as nh
 
-
-def insert_dataset_pi(cur, yml_dict, csv_file, uploader):
+def insert_collector(cur, yml_dict, csv_file, uploader):
     """
-    Inserts dataset principal investigator data into Neotomas.
+    Inserts data processors into Neotoma
 
     Args:
         cur (cursor object): Database cursor to execute SQL queries.
@@ -13,12 +12,12 @@ def insert_dataset_pi(cur, yml_dict, csv_file, uploader):
         uploader (dict): Dictionary containing uploader details.
 
     Returns:
-        response (dict): A dictionary containing information about the inserted dataset principal investigators.
-            - 'dataset_pi_ids' (list): List of dictionaries containing details of the contacts, including their IDs and order.
+        response (dict): A dictionary containing information about the inserted data processors.
+            - 'processorid' (list): List of processors' IDs.
             - 'valid' (bool): Indicates if all insertions were successful.
     """
     response = Response()
-    inputs = nh.pull_params(["contactid", "contactname"], yml_dict, csv_file, "ndb.datasetpis")
+    inputs = nh.pull_params(["contactid", "contactname"], yml_dict, csv_file, "ndb.collectors")
 
     if not inputs['contactid']:
         if isinstance(inputs['contactname'], list):
@@ -31,40 +30,34 @@ def insert_dataset_pi(cur, yml_dict, csv_file, uploader):
             inputs['contactname'] = inputs['contactname'].split("|")
     else:
         inputs["contactid"] = list(dict.fromkeys(inputs["contactid"]))
-
     contids = []
-    marker = False
     if not inputs["contactid"]:
         cont_name = nh.get_contacts(cur, inputs["contactname"])
         for agent in cont_name:
             try:
-                contact = Contact(contactid=int(agent["id"]), 
-                                    order=int(agent["order"]))
+                contact = Contact(contactid=agent["id"])
                 response.valid.append(True)
-                marker = True
-            except Exception as e:
-                contact = Contact(contactid=None, order=None)
-                response.message.append(f"✗ Contact DatasetPI is not correct. {e}")
-                response.valid.append(False)
-            if marker == True:
+                contids.append(agent['id'])
                 try:
-                    contact.insert_pi(cur, uploader["datasetid"].datasetid)
-                    response.message.append(f"✔ Added PI {agent['id']}.")
-                    contids.append(agent['id'])
+                    contact.insert_collector(cur, 
+                                             collunitid=uploader["collunitid"].cuid)
+                    response.valid.append(True)
+                    response.message.append(f"✔ Collector {agent['id']} inserted.")
                 except Exception as e:
-                    response.message.append(f"✗ DatasetPI cannot be added. {e}")
+                    response.message.append(f"✗ Data collector information is not correct. {e}")
                     response.valid.append(False)
-            else:
-                response.message.append(f"✗ Data PI information is not correct.")
+            except Exception as e:
                 response.valid.append(False)
+                response.message.append(f"Cannot create Collector: {e}")
+                
     else:
         for id in inputs["contactid"]:
             contids.append(id)
             contact = Contact(contactid=id)
-            contact.insert_pi(cur,
-                              collunitid=uploader["collunitid"].cuid)
+            contact.insert_collector(cur,
+                                     collunitid=uploader["collunitid"].cuid)
             response.valid.append(True)
 
-    response.datasetpi = contids
+    response.collector = contids
     response.validAll = all(response.valid)
     return response
