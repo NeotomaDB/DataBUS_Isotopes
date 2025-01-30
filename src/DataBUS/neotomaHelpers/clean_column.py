@@ -10,7 +10,7 @@ def clean_column(column, template, clean=True):
         _list_: _The cleaned column._
     """
     if clean:
-        setlist = list(set(map(lambda x: x[column], template)))
+        setlist = list(set(map(lambda x: x[column].lower() if isinstance(x[column], str) else x[column], template)))
         if len(setlist) == 1:
             setlist = setlist[0]
         elif len(setlist) == 0:
