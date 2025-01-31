@@ -48,47 +48,26 @@ def insert_analysisunit(cur, yml_dict, csv_file, uploader):
                 au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid, 
                                   mixed=False)
             try:
+                cur.execute("SAVEPOINT before_try")
                 auid = au.insert_to_db(cur)
-                if all(response.valid) == True:
-                    response.message.append(f"✔ Added Analysis Unit {auid}.")
-                    response.valid.append(True)
-                else:
-                    response.message.append(f"✗ Analysis Unit can be created but CU has errors.")
+                response.message.append(f"✔ Added Analysis Unit {auid}.")
+                response.valid.append(True)
             except Exception as e:
-                response.message.append(
-                    f"✗ Analysis Unit Data is not correct. Error message: {e}"
-                )
-                au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid)
-                auid = au.insert_to_db(cur)
-                response.message.append(
-                    f"✗ Adding temporary Analysis Unit {auid} to continue process."
-                    f"\nSite will be removed from upload."
-                )
+                response.message.append(f"✗ Analysis Unit Data cannot be inserted. Error message: {e}")
+                auid = 3 #Placeholder
                 response.valid.append(False)
             response.auid.append(auid)
     else:
         try:
             inputs['collectionunitid'] = uploader["collunitid"].cuid
             au = AnalysisUnit(**inputs)
-        except Exception as e:
-            response.message.append(f"✗ Could not create Analysis Unit, " 
-                                    f"verify entries: \n {e}")
-            au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid, 
-                              mixed=False)
-        try:
             auid = au.insert_to_db(cur)
             response.message.append(f"✔ Added Analysis Unit {auid}.")
             response.valid.append(True)
         except Exception as e:
-            response.message.append(
-                f"✗ Analysis Unit Data is not correct. Error message: {e}"
-            )
-            au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid)
-            auid = au.insert_to_db(cur)
-            response.message.append(
-                f"✗ Adding temporary Analysis Unit {auid} to continue process."
-                f"\nSite will be removed from upload."
-            )
+            response.message.append(f"✗ Cannot insert Analysis Unit, " 
+                                    f"verify entries: \n {e}")
+            auid =3
             response.valid.append(False)
         response.auid.append(auid)
     response.validAll = all(response.valid)

@@ -8,11 +8,9 @@ def match_abbreviation_to_full(abbreviated, full_name):
 
     # Build a regex pattern for initials dynamically
     initial_parts = initials.split()
-    regex_initials = r"\s*".join([f"{init[0]}\\b" for init in initial_parts])
-
+    regex_initials = r"\s*".join([f"{init[0]}(?:\\w*)?\.?,?" for init in initial_parts])
     # Full regex pattern
     regex_pattern = fr"^{surname},\s*{regex_initials}$"
-
     # Perform the regex match
     return bool(re.match(regex_pattern, full_name, re.IGNORECASE))
 
@@ -43,4 +41,4 @@ def get_contacts(cur, contacts_list):
             baseid +=1
         else:
             contids.append({"name": i, "id": None, "order": None})
-    return contids 
+    return contids
