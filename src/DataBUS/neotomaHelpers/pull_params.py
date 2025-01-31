@@ -57,6 +57,7 @@ def pull_params(params, yml_dict, csv_template, table=None, name = None):
                                 clean_valor = [float(num) for num in clean_valor[0].split(",")]
                             case "string":
                                 clean_valor = list(map(str, clean_valor)) if val.get("rowwise") else str(clean_valor)
+                                clean_valor = None if all(item == '' for item in clean_valor) and clean_valor else clean_valor
                         if i == 'notes':
                             if'notes' in add_unit_inputs:
                                 add_unit_inputs[i].append({f"{val.get('column')}": clean_valor})

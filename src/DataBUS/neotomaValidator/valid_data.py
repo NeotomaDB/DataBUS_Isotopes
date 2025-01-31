@@ -30,27 +30,39 @@ def valid_data(cur, yml_dict, csv_file):
                      WHERE LOWER(taxonname) = %(element)s;"""
     units_query = """SELECT variableunitsid FROM ndb.variableunits 
                      WHERE LOWER(variableunits) = %(element)s;"""
-    #TODO variablectxt_query = """SELECT variableunitsid FROM ndb.variableunits 
-    #                             WHERE LOWER(variableunits) = %(units)s;"""
+    context_query = """SELECT LOWER(variablecontext) FROM ndb.variablecontexts
+                       WHERE LOWER(variablecontext) = %(element)s;"""
 
     par = {'variableelement': [var_query, 'variableelementid'], 
            'taxon': [taxon_query, 'taxonid'], 
-           'variableunits': [units_query, 'variableunitsid']}
+           'variableunits': [units_query, 'variableunitsid'],
+           'variablecontext': [context_query, 'variablecontextid']}
 
     for i in range(len(inputs['value'])):
         entries = {}
         counter = 0
         for k,v in par.items():
-            cur.execute(v[0], {'element': inputs[k][i].lower()})
-            entries[v[1]] = cur.fetchone()
-            if not entries[v[1]]:
-                counter += 1
-                response.message.append(f"✗  {k} ID for {inputs[k][i]} not found. "
-                                        f"Does it exist in Neotoma?")
-                entries[v[1]] = counter
-                response.valid.append(False)
+            if inputs[k]:
+                if inputs[k][i] != '':
+                    cur.execute(v[0], {'element': inputs[k][i].lower()})
+                    entries[v[1]] = cur.fetchone()
+                    if not entries[v[1]]:
+                        counter +=1
+                        response.message.append(f"✗  {k} ID for {inputs[k][i]} not found. "
+                                                f"Does it exist in Neotoma?")
+                        response.valid.append(False)
+                        entries[v[1]] = None
+                    else:
+                        entries[v[1]] = entries[v[1]][0]
+                else:
+                    inputs[k][i] = None
+                    entries[v[1]] = None
+                    response.message.append(f"?  {inputs[k][i]} ID not given. ")
+                    response.valid.append(True)
             else:
-                entries[v[1]] = entries[v[1]][0]
+                    response.message.append(f"?  {k} ID not given. ")
+                    response.valid.append(True)
+                    entries[v[1]] = counter
         var = Variable(**entries)
         response.valid.append(True)
         try:
@@ -64,17 +76,20 @@ def valid_data(cur, yml_dict, csv_file):
             varid = varid[0]
             response.valid.append(True)
         else:
-            response.message.append(f"? Var ID not found for: "
+            if inputs['variablecontext']:
+                varcontextid = inputs['variablecontext'][i]
+            else:
+                varcontextid = inputs['variablecontext']
+            response.message.append(f"? Var ID not found for: \n "
                                     f"variableunitsid: {inputs['variableunits'][i]}, ID: {entries['variableunitsid']},\n"
                                     f"taxon: {inputs['taxon'][i].lower()}, ID: {entries['taxonid']},\n"
                                     f"variableelement: {inputs['variableelement'][i]}, ID: {entries['variableelementid']},\n"
-                                    f"variablecontextid: {inputs['variablecontext']}\n")
+                                    f"variablecontextid: {varcontextid}, ID: {entries['variablecontextid']}\n")
             response.valid.append(True)
         
         try:
             Datum(sampleid=int(3), variableid=varid, value=inputs['value'][i])
             response.valid.append(True)
-            response.message.append(f"✔  Datum can be created.")
         except Exception as e:
             response.valid.append(False)
             response.message.append(f"✗  Datum cannot be created: {e}")
