@@ -48,7 +48,7 @@ def insert_dataset_pi(cur, yml_dict, csv_file, uploader):
                 response.valid.append(False)
             if marker == True:
                 try:
-                    contact.insert_pi(cur, uploader["datasetid"].datasetid)
+                    contact.insert_pi(cur, uploader["datasets"].datasetid)
                     response.message.append(f"✔ Added PI {agent['id']}.")
                     contids.append(agent['id'])
                 except Exception as e:

@@ -35,7 +35,7 @@ def insert_sample(cur, yml_dict, csv_file, uploader):
         try:
             inputs.pop('taxonname', None)  
             inputs['analysisunitid'] = uploader["anunits"].auid[j]
-            inputs['datasetid'] = uploader["datasetid"].datasetid
+            inputs['datasetid'] = uploader["datasets"].datasetid
             sample = Sample(**inputs)
             response.valid.append(True)
             try:

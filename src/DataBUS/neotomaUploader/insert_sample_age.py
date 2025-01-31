@@ -1,6 +1,6 @@
 import DataBUS.neotomaHelpers as nh
 from DataBUS import SampleAge, Response
-
+import datetime
 
 def insert_sample_age(cur, yml_dict, csv_file, uploader):
     """
@@ -52,7 +52,7 @@ def insert_sample_age(cur, yml_dict, csv_file, uploader):
     if agemodel['agemodel'].lower() == "collection date":
         if isinstance(inputs['age'], (float, int)):
             inputs['age'] = 1950 - inputs['age']
-        elif isinstance(inputs['age'], datetime):
+        elif isinstance(inputs['age'],datetime.datetime):
             inputs['age'] = 1950 - inputs['age'].year
         elif isinstance(inputs['age'], list):
             inputs['age'] = [1950 - value.year if isinstance(value, datetime) else 1950 - value

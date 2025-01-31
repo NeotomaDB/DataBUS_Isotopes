@@ -8,19 +8,19 @@ def match_abbreviation_to_full(abbreviated, full_name):
 
     # Build a regex pattern for initials dynamically
     initial_parts = initials.split()
-    regex_initials = r"\s*".join([f"{init[0]}(?:\\w*)?" for init in initial_parts])
+    regex_initials = r"\s*".join([f"{init[0]}\\b" for init in initial_parts])
 
     # Full regex pattern
     regex_pattern = fr"^{surname},\s*{regex_initials}$"
 
     # Perform the regex match
-    return bool(re.match(regex_pattern, full_name))
+    return bool(re.match(regex_pattern, full_name, re.IGNORECASE))
 
 def get_contacts(cur, contacts_list):
     get_contact = (
-        """SELECT contactid, contactname, similarity(contactname, %(name)s) AS sim_score
+        """SELECT contactid, contactname, similarity(LOWER(contactname), %(name)s) AS sim_score
                     FROM ndb.contacts
-                    WHERE contactname %% %(name)s
+                    WHERE LOWER(contactname) %% %(name)s
                     ORDER BY sim_score DESC
                     LIMIT 3;"""
     )
@@ -28,13 +28,13 @@ def get_contacts(cur, contacts_list):
     contids = list()
     for i in contacts_list:
         i = i.strip()
-        cur.execute(get_contact, {"name": i})
+        cur.execute(get_contact, {"name": i.lower()})
         data = cur.fetchone()
         if data:
-            d_name = data[1]
+            d_name = data[1].lower()
             d_id = data[0]
             simm = data[2]
-            result = d_name.startswith(i.rstrip("."))
+            result = d_name.startswith(i.lower().rstrip("."))
             result_2 = match_abbreviation_to_full(d_name, i)
             if (result or result_2 or (simm == 1)) == True:
                 contids.append({"name": d_name, "id": d_id, "order": baseid})

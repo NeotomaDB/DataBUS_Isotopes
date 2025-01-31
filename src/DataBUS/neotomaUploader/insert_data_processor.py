@@ -50,7 +50,7 @@ def insert_data_processor(cur, yml_dict, csv_file, uploader):
             if marker == True:
                 try:
                     contact.insert_data_processor(cur, 
-                                                  datasetid=uploader["datasetid"].datasetid)
+                                                  datasetid=uploader["datasets"].datasetid)
                     response.valid.append(True)
                     response.message.append(f"✔ Processor {agent['id']} inserted.")
                 except Exception as e:
