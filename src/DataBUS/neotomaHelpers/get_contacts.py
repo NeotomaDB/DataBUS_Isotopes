@@ -11,8 +11,10 @@ def match_abbreviation_to_full(abbreviated, full_name):
     regex_initials = r"\s*".join([f"{init[0]}(?:\\w*)?\.?,?" for init in initial_parts])
     # Full regex pattern
     regex_pattern = fr"^{surname},\s*{regex_initials}$"
+    regex_pattern2 = fr"^(\w+),\s*(\w+)\s+(\w)\.?(\w+)?$"
     # Perform the regex match
-    return bool(re.match(regex_pattern, full_name, re.IGNORECASE))
+    return (bool(re.match(regex_pattern, full_name, re.IGNORECASE)) or
+             bool(re.match(regex_pattern2, full_name, re.IGNORECASE)))
 
 def get_contacts(cur, contacts_list):
     get_contact = (

@@ -41,23 +41,13 @@ def insert_data_processor(cur, yml_dict, csv_file, uploader):
             try:
                 contact = Contact(contactid=int(agent["id"]), 
                                     order=int(agent["order"]))
-                response.valid.append(True)
-                marker = True
-            except Exception as e:
-                contact = Contact(contactid=None, order=None)
-                response.message.append(f"✗ Contact Dataset Processor is not correct. {e}")
-                response.valid.append(False)
-            if marker == True:
-                try:
-                    contact.insert_data_processor(cur, 
+                contact.insert_data_processor(cur, 
                                                   datasetid=uploader["datasets"].datasetid)
-                    response.valid.append(True)
-                    response.message.append(f"✔ Processor {agent['id']} inserted.")
-                except Exception as e:
-                    response.message.append(f"✗ Data processor information is not correct. {e}")
-                    response.valid.append(False)
-            else:
-                response.message.append(f"✗ Data Processor information is not correct.")
+                response.valid.append(True)
+                response.message.append(f"✔ Processor {agent['id']} inserted.")
+            except Exception as e:
+                contact = Contact(contactid=1, order=None) #placeholder
+                response.message.append(f"✗ Contact Dataset Processor is not correct. {e}")
                 response.valid.append(False)
     else:
         for id in inputs["contactid"]:

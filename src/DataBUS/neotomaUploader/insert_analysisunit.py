@@ -41,21 +41,15 @@ def insert_analysisunit(cur, yml_dict, csv_file, uploader):
                 kwargs = dict(zip(iterable_params.keys(), values))
                 kwargs.update(static_params) 
                 AnalysisUnit(**kwargs)
-                response.valid.append(True)
-            except Exception as e:
-                response.message.append(f"✗ Could not create Analysis Unit, " 
-                                        f"verify entries: \n {e}")
-                au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid, 
-                                  mixed=False)
-            try:
-                cur.execute("SAVEPOINT before_try")
                 auid = au.insert_to_db(cur)
                 response.message.append(f"✔ Added Analysis Unit {auid}.")
                 response.valid.append(True)
             except Exception as e:
-                response.message.append(f"✗ Analysis Unit Data cannot be inserted. Error message: {e}")
-                auid = 3 #Placeholder
-                response.valid.append(False)
+                response.message.append(f"✗ Could not insert Analysis Unit, " 
+                                        f"verify entries: \n {e}")
+                au = AnalysisUnit(collectionunitid=uploader["collunitid"].cuid, 
+                                  mixed=False)
+                auid = 3 #placeholder
             response.auid.append(auid)
     else:
         try:

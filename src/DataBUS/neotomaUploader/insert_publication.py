@@ -37,25 +37,18 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
         response.message.append(f"? No DOI present")
         response.valid.append(True)
         if inputs['citation']:
+            print("here")
             for cit in inputs['citation']:
-                if isinstance(inputs['citation'], str): 
-                    cur.execute(cit_q, {'cit': inputs['citation'].lower()})
-                    obs = cur.fetchall()
-                    pub_id = obs[0] if obs is not None else None
-                    if pub_id:
-                        response.message.append(f"✔  Found Publication: "
-                                                f"{obs[0][3]} in Neotoma")
-                        response.valid.append(True)
-                elif isinstance(inputs['citation'], list):
-                    inputs['citation'] = list(set(inputs['citation']))
-                    for cit in inputs['citation']:
-                        cur.execute(cit_q, {'cit': cit.lower()})
-                        obs = cur.fetchall()
-                        pub_id = obs[0] if obs is not None else None
-                        if pub_id:
-                            response.message.append(f"✔  Found Publication: "
-                                                    f"{obs[0][3]} in Neotoma")
-                            response.valid.append(True)
+                cur.execute(cit_q, {'cit': cit.lower()})
+                obs = cur.fetchall()
+                pub_id = obs[0] if obs is not None else None
+                if pub_id:
+                    response.message.append(f"✔  Found Publication: "
+                                            f"{obs[0][3]} in Neotoma")
+                    response.valid.append(True)
+                    cur.execute(dataset_pub_q, {'datasetid': uploader["datasets"].datasetid,
+                                        'publicationid': pub_id[0],
+                                        'primarypub': True})
     else:
         try:
             inputs['publicationid'] = int(inputs['publicationid'])
@@ -72,7 +65,7 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
                 response.message.append(f"✔  Found Publication: "
                                         f"{pub[3]} in Neotoma")
                 response.valid.append(True)
-                cur.execute(dataset_pub_q, {'datasetid': uploader["datasetid"].datasetid,
+                cur.execute(dataset_pub_q, {'datasetid': uploader["datasets"].datasetid,
                                             'publicationid': inputs['publicationid'],
                                             'primarypub': True})
             else:

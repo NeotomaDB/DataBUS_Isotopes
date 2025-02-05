@@ -23,12 +23,9 @@ class CollectionUnit:
         location=None,
         notes=None,
         geog=None):
-
         self.collectionunitid = collectionunitid
         if isinstance(handle, list) and len(handle) > 1:
-            raise ValueError(
-                "✗ There can only be a single collection unit handle defined."
-            )
+            raise ValueError("✗ There can only be a single collection unit handle defined.")
         handle = None if handle == ["NA"] else handle
         self.handle = handle
         if self.handle is None:

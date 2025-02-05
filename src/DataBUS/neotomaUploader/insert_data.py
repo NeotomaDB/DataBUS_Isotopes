@@ -18,6 +18,11 @@ def insert_data(cur, yml_dict, csv_file, uploader):
     inputs2 = nh.pull_params(params, yml_dict, csv_file, "ndb.variables")
     inputs = {**inputs, **inputs2}
     
+    # Request to sort by alphabetical order.
+    sorted_indices = sorted(range(len(inputs['taxon'])), key=lambda i: inputs['taxon'][i])
+    inputs = {k: [v[i] for i in sorted_indices] if isinstance(v, list) else v
+              for k, v in inputs.items()}
+    
     response = Response()
 
     var_query = """SELECT variableelementid FROM ndb.variableelements

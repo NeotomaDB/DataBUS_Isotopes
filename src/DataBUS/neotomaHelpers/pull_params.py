@@ -3,7 +3,7 @@ import re
 from .retrieve_dict import retrieve_dict
 from .clean_column import clean_column
 from .clean_notes import clean_notes
-
+ 
 def pull_params(params, yml_dict, csv_template, table=None, name = None):
     """
     Pull parameters associated with an insert statement from the yml/csv tables.

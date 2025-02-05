@@ -12,7 +12,7 @@ class Site:
         sitedescription=None,
         notes=None,
         geog=None):
-
+        
         if not (isinstance(siteid, int) or siteid is None or siteid == "NA"):
             raise TypeError("✗ Site ID must be an integer or None.")
         if siteid == ["NA"] or siteid == "NA":
@@ -24,12 +24,12 @@ class Site:
         if not isinstance(sitename, (list, str)):
             raise TypeError(f"✗ Sitename must be a string or list of strings.")
         if isinstance(sitename, list):
-            sitenames = {s.lower() for s in sitename}
-            if len(sitenames) != 1:
+            verif = {s.lower() for s in sitename}
+            if len(verif) != 1:
                 raise ValueError("✗ There are multiple sitenames in your template.")
             else:
-                sitename = sitename[0].title()
-        self.sitename = sitename
+                sitename = sitename[0]
+        self.sitename = sitename.lower().title()
 
         if not (isinstance(altitude, (int, float, list)) or altitude is None):
             raise TypeError("Altitude must be a number, list of numbers, or None.")

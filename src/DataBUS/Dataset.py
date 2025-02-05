@@ -5,8 +5,8 @@ class Dataset:
         datasetid=None,
         collectionunitid=None,
         datasetname=None,
-        notes=None,
-    ):
+        notes=None):
+
         self.datasetid = datasetid
         self.collectionunitid = collectionunitid
         if isinstance(datasettypeid, int):

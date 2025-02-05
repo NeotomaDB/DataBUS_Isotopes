@@ -34,7 +34,7 @@ def insert_collector(cur, yml_dict, csv_file, uploader):
     if not inputs["contactid"]:
         cont_name = nh.get_contacts(cur, inputs["contactname"])
         for agent in cont_name:
-            try:
+            try: 
                 contact = Contact(contactid=agent["id"])
                 response.valid.append(True)
                 contids.append(agent['id'])
