@@ -17,10 +17,11 @@ def insert_dataset(cur, yml_dict, csv_file, uploader, name=None):
             'valid' (bool): Indicates if insertions were successful.
     """
     response = Response()
-    params = [("datasetname", "ndb.datasets.datasetname"),
-              ("datasettypeid", "ndb.datasettypes.datasettypeid"),
+    params = [("datasettypeid", "ndb.datasettypes.datasettypeid"),
               ("datasettype", "ndb.datasettypes.datasettype")]
     inputs = {}
+    inputs['datasetname'] = nh.pull_params(['datasetname'], yml_dict, csv_file, "ndb.datasets")['datasetname']
+    
     for param in params:
         val = nh.retrieve_dict(yml_dict, param[1])
         if val:

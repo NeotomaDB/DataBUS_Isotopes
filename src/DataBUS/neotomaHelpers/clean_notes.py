@@ -11,11 +11,11 @@ def clean_notes(notes = None, name = None):
             if not list(notes[0].values())[0]:
                 notes = None
     if notes:
-        # List Values
-        #list_dict = {k: v for d in notes for k, v in d.items() if isinstance(v, list)}
-        list_dict = {k: list(dict.fromkeys(sum((d[k] for d in notes if k in d and isinstance(d[k], list)), [])))
-                     for k in {k for d in notes for k in d if isinstance(d[k], list)}}
+        # List values
+        list_dict = {k: v for d in notes for k, v in d.items() if isinstance(v, list)}
         mapped_vals = ["; ".join(items) for items in zip(*list_dict.values())]
+
+        mapped_vals = list(set(mapped_vals))
         if not name:
             name = "notes"
         mapped_vals = {name: mapped_vals}

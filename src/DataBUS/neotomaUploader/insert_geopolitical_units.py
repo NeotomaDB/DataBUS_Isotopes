@@ -5,8 +5,8 @@ def insert_geopolitical_units(cur, yml_dict, csv_file, uploader):
     """_Validating geopolitical units"""
     response = Response()
 
-    params = ["geopoliticalunit1", "geopoliticalunit2",
-              "geopoliticalunit3", "geopoliticalunit4"]
+    params = ["geopoliticalunit1"]#, "geopoliticalunit2",
+             # "geopoliticalunit3", "geopoliticalunit4"]
 
     inputs = nh.pull_params(params, yml_dict, csv_file, "ndb.sitegeopolitical")
     query = """SELECT geopoliticalid FROM ndb.geopoliticalunits

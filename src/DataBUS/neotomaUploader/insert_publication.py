@@ -37,7 +37,6 @@ def insert_publication(cur, yml_dict, csv_file, uploader):
         response.message.append(f"? No DOI present")
         response.valid.append(True)
         if inputs['citation']:
-            print("here")
             for cit in inputs['citation']:
                 cur.execute(cit_q, {'cit': cit.lower()})
                 obs = cur.fetchall()
