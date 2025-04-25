@@ -1,7 +1,7 @@
 
 <!-- badges: start -->
 
-![lifecycle](https://img.shields.io/badge/lifecycle-active-orange.svg)
+![lifecycle](https://img.shields.io/badge/lifecycle-active-green.svg)
 [![NSF-1948926](https://img.shields.io/badge/NSF-1948926-blue.svg)](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1948926) [![NSF-2410961](https://img.shields.io/badge/NSF-2410961-blue.svg)](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2410961)
 
 <!-- badges: end -->
